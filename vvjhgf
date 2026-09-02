@@ -1,0 +1,115 @@
+-- Khởi tạo thư viện UI Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Menu Thông Tin Đối Tượng",
+   LoadingTitle = "Đang tải dữ liệu...",
+   LoadingSubtitle = "by Assistant",
+   ConfigurationSaving = { Enabled = false }
+})
+
+local MainTab = Window:CreateTab("Chức Năng", 4483362458)
+
+local ESPEnabled = false
+local ShowName = true
+local ShowDistance = true
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local function createESP(player)
+    -- Tạo khung Box
+    local Box = Drawing.new("Square")
+    Box.Visible = false
+    Box.Color = Color3.fromRGB(255, 0, 0)
+    Box.Thickness = 1.5
+    Box.Transparency = 1
+    Box.Filled = false
+
+    -- Tạo văn bản hiển thị Tên và Khoảng cách
+    local Text = Drawing.new("Text")
+    Text.Visible = false
+    Text.Color = Color3.fromRGB(255, 255, 255)
+    Text.Size = 14
+    Text.Center = true
+    Text.Outline = true
+
+    local Connection
+    Connection = game:GetService("RunService").RenderStepped:Connect(function()
+        if ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player ~= LocalPlayer and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local RootPart = player.Character.HumanoidRootPart
+            local Position, OnScreen = Camera:WorldToViewportPoint(RootPart.Position)
+
+            if OnScreen then
+                local Scale = 1000 / Position.Z
+                Box.Size = Vector2.new(2 * Scale, 3 * Scale)
+                Box.Position = Vector2.new(Position.X - Box.Size.X / 2, Position.Y - Box.Size.Y / 2)
+                Box.Visible = true
+
+                -- Tính khoảng cách
+                local Distance = math.floor((RootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)
+                
+                -- Định dạng nội dung hiển thị
+                local StringContent = ""
+                if ShowName then StringContent = player.Name end
+                if ShowDistance then 
+                    if StringContent ~= "" then
+                        StringContent = StringContent .. " [" .. tostring(Distance) .. "m]"
+                    else
+                        StringContent = "[" .. tostring(Distance) .. "m]"
+                    end
+                end
+
+                Text.Text = StringContent
+                Text.Position = Vector2.new(Position.X, Position.Y - Box.Size.Y / 2 - 16)
+                Text.Visible = (ShowName or ShowDistance)
+            else
+                Box.Visible = false
+                Text.Visible = false
+            end
+        else
+            Box.Visible = false
+            Text.Visible = false
+            if not player.Parent then
+                Box:Remove()
+                Text:Remove()
+                Connection:Disconnect()
+            end
+        end
+    end)
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+    createESP(player)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    createESP(player)
+end)
+
+-- Bảng điều khiển Menu UI
+MainTab:CreateToggle({
+   Name = "Bật/Tắt ESP Box",
+   CurrentValue = false,
+   Callback = function(Value)
+       ESPEnabled = Value
+   end,
+})
+
+MainTab:CreateToggle({
+   Name = "Hiển thị Tên",
+   CurrentValue = true,
+   Callback = function(Value)
+       ShowName = Value
+   end,
+})
+
+MainTab:CreateToggle({
+   Name = "Hiển thị Khoảng cách",
+   CurrentValue = true,
+   Callback = function(Value)
+       ShowDistance = Value
+   end,
+     })
+     
