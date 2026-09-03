@@ -96,9 +96,7 @@ local function TeleportToFruit()
             if part then targetFruit = part break end
         end
     end
-    if targetFruit then
-        FlyTo(targetFruit.CFrame)
-    end
+    if targetFruit then FlyTo(targetFruit.CFrame) end
 end
 
 -- Auto Attack
@@ -286,44 +284,80 @@ RSvc.RenderStepped:Connect(function()
     end)
 end)
 
--- ESP Players
+-- ==========================================
+-- 🛠️ FIXED ESP PLAYER (CẢI TIẾN LẠI HOÀN TOÀN)
+-- ==========================================
 local Lines = {}
 RSvc.RenderStepped:Connect(function()
     local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    
+    -- Reset Lines cũ
     for _, l in pairs(Lines) do pcall(function() l:Remove() end) end
     Lines = {}
 
     for _, p in pairs(P:GetPlayers()) do
-        if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+        if p ~= LP and p.Character then
             local char = p.Character
-            local pHrp = char.HumanoidRootPart
+            local pHrp = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
             local pHum = char:FindFirstChildOfClass("Humanoid")
 
-            if ESPBox then
-                local hl = char:FindFirstChild("JolibeeHL") or Instance.new("Highlight", char)
-                hl.Name = "JolibeeHL"; hl.Enabled = true; hl.FillColor = Color3.fromRGB(255, 0, 0)
-            elseif char:FindFirstChild("JolibeeHL") then char.JolibeeHL.Enabled = false end
+            if pHrp and pHum and pHum.Health > 0 then
+                -- Highlight / Box ESP
+                local hl = char:FindFirstChild("JolibeeHL")
+                if ESPBox then
+                    if not hl then
+                        hl = Instance.new("Highlight", char)
+                        hl.Name = "JolibeeHL"
+                        hl.FillColor = Color3.fromRGB(255, 50, 50)
+                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    end
+                    hl.Enabled = true
+                elseif hl then
+                    hl.Enabled = false
+                end
 
-            local bg = pHrp:FindFirstChild("PlayerESP") or Instance.new("BillboardGui", pHrp)
-            bg.Name = "PlayerESP"; bg.Size = UDim2.new(0, 180, 0, 60); bg.AlwaysOnTop = true; bg.StudsOffset = Vector3.new(0, 3.5, 0)
-            bg.Enabled = ESPName or ESPDist or ESPLevel or ESPHealth
+                -- Text Info ESP (BillboardGui)
+                local bg = pHrp:FindFirstChild("PlayerESP")
+                if not bg then
+                    bg = Instance.new("BillboardGui", pHrp)
+                    bg.Name = "PlayerESP"
+                    bg.Size = UDim2.new(0, 200, 0, 50)
+                    bg.AlwaysOnTop = true
+                    bg.StudsOffset = Vector3.new(0, 3.5, 0)
 
-            local txt = bg:FindFirstChild("Txt") or Instance.new("TextLabel", bg)
-            txt.Name = "Txt"; txt.Size = UDim2.new(1,0,1,0); txt.BackgroundTransparency = 1; txt.TextColor3 = Color3.fromRGB(0, 255, 255); txt.TextSize = 12; txt.Font = Enum.Font.SourceSansBold
+                    local txt = Instance.new("TextLabel", bg)
+                    txt.Name = "Txt"
+                    txt.Size = UDim2.new(1, 0, 1, 0)
+                    txt.BackgroundTransparency = 1
+                    txt.TextColor3 = Color3.fromRGB(0, 255, 255)
+                    txt.TextSize = 13
+                    txt.Font = Enum.Font.SourceSansBold
+                    txt.TextStrokeTransparency = 0
+                end
 
-            local infoStr = ""
-            if ESPName then infoStr = infoStr .. p.Name end
-            if ESPLevel then infoStr = infoStr .. " [Lv. " .. GetLvl(p) .. "]" end
-            if ESPHealth and pHum then infoStr = infoStr .. "\nHP: " .. math.floor(pHum.Health) .. "/" .. math.floor(pHum.MaxHealth) end
-            if ESPDist and myHrp then infoStr = infoStr .. "\n[" .. math.floor((pHrp.Position - myHrp.Position).Magnitude) .. "m]" end
-            txt.Text = infoStr
+                bg.Enabled = (ESPName or ESPDist or ESPLevel or ESPHealth)
 
-            if ESPLine and myHrp then
-                local pos, vis = Cam:WorldToViewportPoint(pHrp.Position)
-                if vis then
-                    local l = Drawing.new("Line")
-                    l.From = Vector2.new(Cam.ViewportSize.X/2, Cam.ViewportSize.Y); l.To = Vector2.new(pos.X, pos.Y); l.Color = Color3.fromRGB(0, 255, 255); l.Thickness = 1.5; l.Visible = true
-                    table.insert(Lines, l)
+                if bg.Enabled then
+                    local infoStr = ""
+                    if ESPName then infoStr = infoStr .. p.Name end
+                    if ESPLevel then infoStr = infoStr .. " [Lv. " .. GetLvl(p) .. "]" end
+                    if ESPHealth then infoStr = infoStr .. "\nHP: " .. math.floor(pHum.Health) .. "/" .. math.floor(pHum.MaxHealth) end
+                    if ESPDist and myHrp then infoStr = infoStr .. "\n[" .. math.floor((pHrp.Position - myHrp.Position).Magnitude) .. "m]" end
+                    bg.Txt.Text = infoStr
+                end
+
+                -- Line ESP
+                if ESPLine and myHrp then
+                    local pos, vis = Cam:WorldToViewportPoint(pHrp.Position)
+                    if vis then
+                        local l = Drawing.new("Line")
+                        l.From = Vector2.new(Cam.ViewportSize.X / 2, Cam.ViewportSize.Y)
+                        l.To = Vector2.new(pos.X, pos.Y)
+                        l.Color = Color3.fromRGB(0, 255, 255)
+                        l.Thickness = 1.5
+                        l.Visible = true
+                        table.insert(Lines, l)
+                    end
                 end
             end
         end
@@ -376,7 +410,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 🎨 CUSTOM GUI (THAY THẾ TOÀN BỘ RAYFIELD)
+-- 🎨 CUSTOM GUI + NÚT TRÒN MỞ MENU + SPEED CONTROLLER
 -- ==========================================
 local CoreGui = game:GetService("CoreGui")
 if CoreGui:FindFirstChild("JolibeeCustomUI") then CoreGui.JolibeeCustomUI:Destroy() end
@@ -384,13 +418,38 @@ if CoreGui:FindFirstChild("JolibeeCustomUI") then CoreGui.JolibeeCustomUI:Destro
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = "JolibeeCustomUI"
 
+-- 🟢 Nút Tròn Mở Menu (Toggle Circle Button)
+local CircleBtn = Instance.new("TextButton", ScreenGui)
+CircleBtn.Name = "OpenCircleBtn"
+CircleBtn.Size = UDim2.new(0, 50, 0, 50)
+CircleBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
+CircleBtn.BackgroundColor3 = Color3.fromRGB(255, 85, 0)
+CircleBtn.Text = "Jolibee"
+CircleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CircleBtn.Font = Enum.Font.SourceSansBold
+CircleBtn.TextSize = 12
+CircleBtn.Visible = false
+CircleBtn.Active = true
+CircleBtn.Draggable = true
+Instance.new("UICorner", CircleBtn).CornerRadius = UDim.new(1, 0)
+
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 450, 0, 300)
-MainFrame.Position = UDim2.new(0.5, -225, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 450, 0, 310)
+MainFrame.Position = UDim2.new(0.5, -225, 0.5, -155)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+
+-- Hàm Bật/Tắt Menu
+local function ToggleMenu(visible)
+    MainFrame.Visible = visible
+    CircleBtn.Visible = not visible
+end
+
+CircleBtn.MouseButton1Click:Connect(function()
+    ToggleMenu(true)
+end)
 
 -- Header Bar
 local Header = Instance.new("Frame", MainFrame)
@@ -399,7 +458,7 @@ Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
 
 local Title = Instance.new("TextLabel", Header)
-Title.Text = "  Jolibee Mod (Custom UI - No Rayfield)"
+Title.Text = "  Jolibee Mod (Toggle Circle Fixed)"
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.SourceSansBold
@@ -415,7 +474,9 @@ CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
 CloseBtn.Font = Enum.Font.SourceSansBold
 CloseBtn.TextSize = 16
 CloseBtn.BackgroundTransparency = 1
-CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+CloseBtn.MouseButton1Click:Connect(function()
+    ToggleMenu(false)
+end)
 
 -- Sidebar Tabs
 local Sidebar = Instance.new("Frame", MainFrame)
@@ -492,6 +553,51 @@ local function CreateButton(parent, text, callback)
     btn.MouseButton1Click:Connect(callback)
 end
 
+-- ⚡ Cụm Chỉnh Tốc Độ Chạy (Speed Controller)
+local function CreateSpeedController(parent)
+    local frame = Instance.new("Frame", parent)
+    frame.Size = UDim2.new(1, -10, 0, 35)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
+
+    local lbl = Instance.new("TextLabel", frame)
+    lbl.Size = UDim2.new(0.5, 0, 1, 0)
+    lbl.Text = " Tốc Độ: " .. WalkSpeedValue
+    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lbl.Font = Enum.Font.SourceSansBold
+    lbl.TextSize = 13
+    lbl.BackgroundTransparency = 1
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local subBtn = Instance.new("TextButton", frame)
+    subBtn.Size = UDim2.new(0, 30, 0, 25)
+    subBtn.Position = UDim2.new(0.52, 0, 0.15, 0)
+    subBtn.Text = "-10"
+    subBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+    subBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    subBtn.Font = Enum.Font.SourceSansBold
+    Instance.new("UICorner", subBtn).CornerRadius = UDim.new(0, 4)
+
+    local addBtn = Instance.new("TextButton", frame)
+    addBtn.Size = UDim2.new(0, 30, 0, 25)
+    addBtn.Position = UDim2.new(0.68, 0, 0.15, 0)
+    addBtn.Text = "+10"
+    addBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+    addBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    addBtn.Font = Enum.Font.SourceSansBold
+    Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 4)
+
+    subBtn.MouseButton1Click:Connect(function()
+        WalkSpeedValue = math.max(16, WalkSpeedValue - 10)
+        lbl.Text = " Tốc Độ: " .. WalkSpeedValue
+    end)
+
+    addBtn.MouseButton1Click:Connect(function()
+        WalkSpeedValue = math.min(300, WalkSpeedValue + 10)
+        lbl.Text = " Tốc Độ: " .. WalkSpeedValue
+    end)
+end
+
 -- Populate Farm Tab
 local FarmScroll = TabFrames["Auto Farm"]
 CreateToggle(FarmScroll, "Auto Farm Level", false, function(v) AutoFarm = v if not v then StopFly() end end)
@@ -519,6 +625,7 @@ CreateToggle(ESPScroll, "ESP Đường Kẻ (Line)", false, function(v) ESPLine 
 -- Populate Misc Tab
 local MiscScroll = TabFrames["Misc"]
 CreateToggle(MiscScroll, "Chạy Nhanh (Speed Hack)", false, function(v) SpeedHack = v end)
+CreateSpeedController(MiscScroll)
 CreateToggle(MiscScroll, "Nhảy Vô Hạn (Infinite Jump)", false, function(v) InfJump = v end)
 CreateToggle(MiscScroll, "Đi Trên Nước (Water Walk)", false, function(v) WalkOnWater = v end)
 CreateButton(MiscScroll, "Xóa Sương Mù (No Fog)", function() RemoveFog() end)
