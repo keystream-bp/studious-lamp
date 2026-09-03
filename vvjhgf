@@ -10,14 +10,14 @@ pcall(function()
 end)
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Lite)", LoadingTitle = "Loading...", ConfigurationSaving = {Enabled = false}})
+local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Fixed Land & Fly)", LoadingTitle = "Loading Smooth Engine...", ConfigurationSaving = {Enabled = false}})
 
 local Players, Lighting, RunService, TweenService, ReplicatedStorage, VirtualUser = game:GetService("Players"), game:GetService("Lighting"), game:GetService("RunService"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser")
 local LocalPlayer, Camera = Players.LocalPlayer, workspace.CurrentCamera
 
 LocalPlayer.Idled:Connect(function() VirtualUser:Button2Down(Vector2.zero, Camera.CFrame) task.wait(1) VirtualUser:Button2Up(Vector2.zero, Camera.CFrame) end)
 
-local ESPBox, ESPName, ESPLine, ESPDistance, ESPBone, ESPFruit, ESPChest = false, false, false, false, false, false, false
+local ESPBox, ESPName, ESPLine, ESPDistance, ESPFruit, ESPChest = false, false, false, false, false, false
 local FlyEnabled, FlySpeed, SelectedPlayer, SelectedIsland, CurrentTween = false, 60, "", "", nil
 local AutoFarmLevel, FastAttack, AutoStats, BringMob, AntiBanMiss, AutoChest, SelectedStat = false, false, false, false, true, false, "Melee"
 
@@ -38,18 +38,26 @@ local function GetQuest()
     return {Level = curr[1], QuestName = curr[2], MobName = curr[3], NpcPos = curr[4], MobPos = curr[5]}
 end
 
-local function SmoothFlyTo(target)
+-- Fix lỗi bay giật và rơi xuống biển (Bay thẳng độ cao Y chuẩn)
+local function SmoothFlyTo(targetPos)
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    local dist = (hrp.Position - target.Position).Magnitude
+    
+    -- Giữ độ cao bay tối thiểu 80 để không chạm biển
+    local targetCFrame = type(targetPos) == "userdata" and targetPos or CFrame.new(targetPos)
+    local flyTarget = CFrame.new(targetCFrame.Position.X, math.max(targetCFrame.Position.Y + 15, 80), targetCFrame.Position.Z)
+    
+    local dist = (hrp.Position - flyTarget.Position).Magnitude
     if dist > 15 then
         if CurrentTween then CurrentTween:Cancel() end
-        CurrentTween = TweenService:Create(hrp, TweenInfo.new(dist / 250, Enum.EasingStyle.Linear), {CFrame = target})
+        CurrentTween = TweenService:Create(hrp, TweenInfo.new(dist / 220, Enum.EasingStyle.Linear), {CFrame = flyTarget})
         CurrentTween:Play()
-    else hrp.CFrame = target end
+    else 
+        hrp.CFrame = targetCFrame 
+    end
 end
 
--- Auto Equip & Fast Hit
+-- Auto Equip & Fast Hit Remote Engine
 local NetEvent = ReplicatedStorage:FindFirstChild("RigControllerEvent") or ReplicatedStorage.Remotes:FindFirstChild("Validator") or ReplicatedStorage.Remotes:FindFirstChild("CommE")
 
 task.spawn(function()
@@ -92,7 +100,7 @@ task.spawn(function()
                     end
                 end
                 if chest then
-                    SmoothFlyTo(chest.CFrame * CFrame.new(0, 2, 0))
+                    SmoothFlyTo(chest.CFrame)
                     if (hrp.Position - chest.Position).Magnitude < 5 then firetouchinterest(hrp, chest, 0); firetouchinterest(hrp, chest, 1) end
                 end
             end)
@@ -100,7 +108,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Farm Level & Bring Mob
+-- Auto Farm Level & Gom quái đứng im DƯỚI ĐẤT
 task.spawn(function()
     while task.wait(0.1) do
         if AutoFarmLevel then
@@ -110,7 +118,7 @@ task.spawn(function()
                 local q = GetQuest()
                 local qUI = LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
                 if not (qUI and qUI.Visible) then
-                    SmoothFlyTo(CFrame.new(q.NpcPos + Vector3.new(0, 3, 0)))
+                    SmoothFlyTo(q.NpcPos)
                     if (hrp.Position - q.NpcPos).Magnitude < 10 then ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", q.QuestName, 1) end
                 else
                     local mainMob, minD = nil, math.huge
@@ -120,17 +128,23 @@ task.spawn(function()
                             if d < minD then minD = d; mainMob = v end
                         end
                     end
-                    if not mainMob then SmoothFlyTo(CFrame.new(q.MobPos + Vector3.new(0, 12, 0)))
+                    if not mainMob then 
+                        SmoothFlyTo(q.MobPos)
                     else
                         local mobHrp = mainMob.HumanoidRootPart
-                        hrp.CFrame = mobHrp.CFrame * CFrame.new(0, 9, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        -- Người chơi đứng trên cao chém xuống
+                        hrp.CFrame = mobHrp.CFrame * CFrame.new(0, 8, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         hrp.Velocity = Vector3.zero
+                        
+                        -- FIX: Gom tất cả quái ÉP DƯỚI MẶT ĐẤT (Cùng độ cao Y của quái chính)
                         if BringMob or AutoFarmLevel then
                             for _, om in pairs(workspace.Enemies:GetChildren()) do
                                 if om.Name == q.MobName and om:FindFirstChild("HumanoidRootPart") and om:FindFirstChild("Humanoid") and om.Humanoid.Health > 0 then
                                     if (om.HumanoidRootPart.Position - mobHrp.Position).Magnitude <= 300 then
-                                        om.HumanoidRootPart.CFrame = mobHrp.CFrame
-                                        om.HumanoidRootPart.CanCollide, om.Humanoid.WalkSpeed = false, 0
+                                        -- Đưa quái về mặt đất trùng vị trí quái chính
+                                        om.HumanoidRootPart.CFrame = CFrame.new(mobHrp.Position.X, mobHrp.Position.Y, mobHrp.Position.Z)
+                                        om.HumanoidRootPart.CanCollide = false
+                                        om.Humanoid.WalkSpeed = 0
                                     end
                                 end
                             end
@@ -142,10 +156,10 @@ task.spawn(function()
     end
 end)
 
--- Auto Stats
+-- Auto Up Stats
 task.spawn(function() while task.wait(0.5) do if AutoStats then pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint", SelectedStat, 1) end) end end end)
 
--- ESP System
+-- ESP World (Rương & Trái)
 local function DrawWorldESP(obj, name, col)
     local part = obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")))
     if not part then return end
@@ -167,6 +181,7 @@ task.spawn(function()
     end
 end)
 
+-- ESP Player System (Box, Line, Name, Distance)
 local Lines = {}
 RunService.RenderStepped:Connect(function()
     local char = LocalPlayer.Character
@@ -181,7 +196,32 @@ RunService.RenderStepped:Connect(function()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local tHrp = p.Character.HumanoidRootPart
-            if ESPBox then local hl = p.Character:FindFirstChild("HL") or Instance.new("Highlight", p.Character); hl.Name = "HL" end
+            
+            -- ESP Box
+            if ESPBox then 
+                local hl = p.Character:FindFirstChild("HL") or Instance.new("Highlight", p.Character)
+                hl.Name, hl.Enabled = "HL", true 
+            elseif p.Character:FindFirstChild("HL") then
+                p.Character.HL.Enabled = false
+            end
+            
+            -- ESP Name & Distance
+            local bg = tHrp:FindFirstChild("PlayerESP") or Instance.new("BillboardGui", tHrp)
+            bg.Name, bg.Size, bg.AlwaysOnTop, bg.StudsOffset = "PlayerESP", UDim2.new(0, 150, 0, 40), true, Vector3.new(0, 3, 0)
+            bg.Enabled = ESPName or ESPDistance
+            
+            local txt = bg:FindFirstChild("Txt") or Instance.new("TextLabel", bg)
+            txt.Name, txt.Size, txt.BackgroundTransparency, txt.TextColor3, txt.TextSize, txt.Font = "Txt", UDim2.new(1,0,1,0), 1, Color3.fromRGB(0, 255, 255), 13, Enum.Font.SourceSansBold
+            
+            local str = ""
+            if ESPName then str = str .. p.Name end
+            if ESPDistance and hrp then
+                local dist = math.floor((tHrp.Position - hrp.Position).Magnitude)
+                str = str .. (ESPName and "\n" or "") .. "[" .. dist .. "m]"
+            end
+            txt.Text = str
+
+            -- ESP Line
             if ESPLine and hrp then
                 local pos, vis = Camera:WorldToViewportPoint(tHrp.Position)
                 if vis then
@@ -197,7 +237,7 @@ end)
 local FarmTab = Window:CreateTab("Auto Farm")
 FarmTab:CreateToggle({Name = "Auto Farm Level", Callback = function(v) AutoFarmLevel = v end})
 FarmTab:CreateToggle({Name = "Auto Nhặt Rương", Callback = function(v) AutoChest = v end})
-FarmTab:CreateToggle({Name = "Gom Quái (Bring Mob)", Callback = function(v) BringMob = v end})
+FarmTab:CreateToggle({Name = "Gom Quái Đứng Dưới Đất", Callback = function(v) BringMob = v end})
 FarmTab:CreateToggle({Name = "Fast Attack & Đánh Xa", Callback = function(v) FastAttack = v end})
 FarmTab:CreateToggle({Name = "Anti-Ban (Miss Hit)", CurrentValue = true, Callback = function(v) AntiBanMiss = v end})
 FarmTab:CreateDropdown({Name = "Chọn Stat", Options = {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, Callback = function(v) SelectedStat = type(v) == "table" and v[1] or v end})
@@ -205,6 +245,8 @@ FarmTab:CreateToggle({Name = "Auto Up Stats", Callback = function(v) AutoStats =
 
 local ESPTab = Window:CreateTab("ESP Player")
 ESPTab:CreateToggle({Name = "ESP Box", Callback = function(v) ESPBox = v end})
+ESPTab:CreateToggle({Name = "ESP Tên (Name)", Callback = function(v) ESPName = v end})
+ESPTab:CreateToggle({Name = "ESP Khoảng Cách (Distance)", Callback = function(v) ESPDistance = v end})
 ESPTab:CreateToggle({Name = "ESP Line", Callback = function(v) ESPLine = v end})
 
 local WorldTab = Window:CreateTab("World ESP")
