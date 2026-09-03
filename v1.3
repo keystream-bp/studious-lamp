@@ -1,9 +1,7 @@
 -- Tải thư viện Fluent UI Library gốc
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
--- Bypass Anti-Cheat & Chống Ban
+-- Bypass Anti-Cheat & Bảo vệ Script
 pcall(function()
     local g = getgenv and getgenv() or _G
     if g.debug then g.debug.info, g.debug.getupvalue, g.debug.getconstant = function() end, function() end, function() end end
@@ -25,15 +23,15 @@ end)
 local P, L, TS, RS, VU, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService")
 local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
 
--- Chống AFK Kick
+-- Chống AFK
 LP.Idled:Connect(function() 
     VU:Button2Down(Vector2.zero, Cam.CFrame) 
     task.wait(1) 
     VU:Button2Up(Vector2.zero, Cam.CFrame) 
 end)
 
--- Biến lưu trạng thái Chức Năng
-local AutoFarm, AutoChest, BringMob, FastAttack, FastDistance = false, false, false, false, false
+-- Biến Trạng Thái Chức Năng
+local AutoFarm, BringMob, FastAttack, FastDistance = false, false, false, false
 local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, ESPFruitGlow, ESPLevel, ESPHealth = false, false, false, false, false, false, false, false
 local AutoStoreFruit, WalkOnWater, SpeedHack, WalkSpeedValue = false, false, false, 32
 local InfJump, GodMode = false, false
@@ -46,9 +44,7 @@ local Quests = {
     {15, "JungleQuest", 2, "Gorilla", CFrame.new(-1598, 36, 153), CFrame.new(-1237, 6, -486)},
     {30, "PirateQuest", 1, "Pirate", CFrame.new(-1140, 4, 3828), CFrame.new(-1200, 4, 3900)},
     {60, "DesertQuest", 1, "Desert Bandit", CFrame.new(894, 6, 4388), CFrame.new(950, 6, 4450)},
-    {90, "SnowQuest", 1, "Snow Bandit", CFrame.new(1385, 87, -1298), CFrame.new(1300, 87, -1350)},
-    {120, "MarineQuest2", 1, "Chief Petty Officer", CFrame.new(-2570, 6, 2060), CFrame.new(-2700, 6, 2100)},
-    {150, "SkyQuest", 1, "Sky Bandit", CFrame.new(-4839, 717, -2619), CFrame.new(-4950, 717, -2900)}
+    {90, "SnowQuest", 1, "Snow Bandit", CFrame.new(1385, 87, -1298), CFrame.new(1300, 87, -1350)}
 }
 
 local function GetLvl(p)
@@ -67,7 +63,7 @@ local function GetQ()
     return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]}
 end
 
--- Thuật toán Bay (Tween Fly)
+-- Bay Tween
 local function FlyTo(targetCF, speed)
     speed = speed or 250
     local chr = LP.Character
@@ -97,19 +93,7 @@ local function StopFly()
     if hum then hum.PlatformStand = false end
 end
 
--- Bất Tử (God Mode) & Noclip
-RSvc.Stepped:Connect(function()
-    pcall(function()
-        local chr = LP.Character
-        if chr then
-            local hum = chr:FindFirstChildOfClass("Humanoid")
-            if GodMode and hum and hum.Health > 0 then hum.Health = hum.MaxHealth end
-            if AutoFarm then for _, v in pairs(chr:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end end
-        end
-    end)
-end)
-
--- Vòng lặp Auto Farm & Gom Quái
+-- Auto Farm Logic
 RSvc.Heartbeat:Connect(function()
     if AutoFarm then
         pcall(function()
@@ -156,7 +140,7 @@ RSvc.Heartbeat:Connect(function()
     end
 end)
 
--- Fast Attack & Tự động Đánh
+-- Fast Attack
 task.spawn(function()
     while true do
         task.wait(FastAttack and 0.03 or 0.15)
@@ -166,9 +150,7 @@ task.spawn(function()
                 if chr and chr:FindFirstChild("Humanoid") and chr.Humanoid.Health > 0 then
                     local tool = chr:FindFirstChildOfClass("Tool")
                     if not tool then
-                        for _, t in pairs(LP.Backpack:GetChildren()) do
-                            if t:IsA("Tool") then chr.Humanoid:EquipTool(t) break end
-                        end
+                        for _, t in pairs(LP.Backpack:GetChildren()) do if t:IsA("Tool") then chr.Humanoid:EquipTool(t) break end end
                     else
                         tool:Activate()
                         VU:Button1Down(Vector2.zero, Cam.CFrame) task.wait(0.01) VU:Button1Up(Vector2.zero, Cam.CFrame)
@@ -183,11 +165,113 @@ task.spawn(function()
     end
 end)
 
--- ESP TRÁI ÁC QUỶ (FRUIT ESP)
+-- HỆ THỐNG ESP PLAYER
+local ESP_Cache = {}
+
+local function CreateESPForPlayer(plr)
+    if plr == LP or ESP_Cache[plr] then return end
+    local espData = {
+        Line = Drawing.new("Line"),
+        Box = Instance.new("Highlight"),
+        Billboard = Instance.new("BillboardGui"),
+        TextLabel = Instance.new("TextLabel")
+    }
+    
+    espData.Line.Visible = false
+    espData.Line.Color = Color3.fromRGB(0, 255, 255)
+    espData.Line.Thickness = 1.5
+
+    espData.Box.Name = "Jollibee_ESP_Box"
+    espData.Box.FillColor = Color3.fromRGB(255, 50, 50)
+    espData.Box.OutlineColor = Color3.fromRGB(255, 255, 255)
+    espData.Box.FillTransparency = 0.5
+    espData.Box.Enabled = false
+
+    espData.Billboard.Name = "Jollibee_ESP_Text"
+    espData.Billboard.Size = UDim2.new(0, 200, 0, 50)
+    espData.Billboard.AlwaysOnTop = true
+    espData.Billboard.StudsOffset = Vector3.new(0, 3.5, 0)
+    espData.Billboard.Enabled = false
+
+    espData.TextLabel.Parent = espData.Billboard
+    espData.TextLabel.Size = UDim2.new(1, 0, 1, 0)
+    espData.TextLabel.BackgroundTransparency = 1
+    espData.TextLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+    espData.TextLabel.TextSize = 13
+    espData.TextLabel.Font = Enum.Font.SourceSansBold
+    espData.TextLabel.TextStrokeTransparency = 0
+
+    ESP_Cache[plr] = espData
+end
+
+local function RemoveESPForPlayer(plr)
+    local data = ESP_Cache[plr]
+    if data then
+        pcall(function() data.Line:Remove() end)
+        pcall(function() data.Box:Destroy() end)
+        pcall(function() data.Billboard:Destroy() end)
+        ESP_Cache[plr] = nil
+    end
+end
+
+for _, plr in pairs(P:GetPlayers()) do CreateESPForPlayer(plr) end
+P.PlayerAdded:Connect(CreateESPForPlayer)
+P.PlayerRemoving:Connect(RemoveESPForPlayer)
+
+RSvc.RenderStepped:Connect(function()
+    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    
+    for plr, data in pairs(ESP_Cache) do
+        local char = plr.Character
+        local pHrp = char and char:FindFirstChild("HumanoidRootPart")
+        local pHum = char and char:FindFirstChildOfClass("Humanoid")
+
+        if char and pHrp and pHum and pHum.Health > 0 then
+            if ESPBox then
+                if data.Box.Parent ~= char then data.Box.Parent = char end
+                data.Box.Enabled = true
+            else
+                data.Box.Enabled = false
+            end
+
+            if ESPName or ESPLevel or ESPHealth or ESPDist then
+                if data.Billboard.Parent ~= pHrp then data.Billboard.Parent = pHrp end
+                local infoStr = ""
+                if ESPName then infoStr = infoStr .. plr.Name end
+                if ESPLevel then infoStr = infoStr .. " [Lv. " .. GetLvl(plr) .. "]" end
+                if ESPHealth then infoStr = infoStr .. "\nHP: " .. math.floor(pHum.Health) .. "/" .. math.floor(pHum.MaxHealth) end
+                if ESPDist and myHrp then infoStr = infoStr .. "\n[" .. math.floor((pHrp.Position - myHrp.Position).Magnitude) .. "m]" end
+                
+                data.TextLabel.Text = infoStr
+                data.Billboard.Enabled = true
+            else
+                data.Billboard.Enabled = false
+            end
+
+            if ESPLine and myHrp then
+                local pos, vis = Cam:WorldToViewportPoint(pHrp.Position)
+                if vis then
+                    data.Line.From = Vector2.new(Cam.ViewportSize.X / 2, Cam.ViewportSize.Y)
+                    data.Line.To = Vector2.new(pos.X, pos.Y)
+                    data.Line.Visible = true
+                else
+                    data.Line.Visible = false
+                end
+            else
+                data.Line.Visible = false
+            end
+        else
+            data.Box.Enabled = false
+            data.Billboard.Enabled = false
+            data.Line.Visible = false
+        end
+    end
+end)
+
+-- ESP FRUIT LOGIC
 RSvc.RenderStepped:Connect(function()
     pcall(function()
         local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-        
         for _, v in pairs(workspace:GetChildren()) do
             local isFruit = v:IsA("Tool") or v.Name:find("Fruit") or v.Name:find("Fruit ")
             if isFruit then
@@ -201,38 +285,26 @@ RSvc.RenderStepped:Connect(function()
                             local txt = Instance.new("TextLabel", bg)
                             txt.Name = "Txt"; txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.TextColor3 = Color3.fromRGB(255, 170, 0); txt.TextSize = 14; txt.Font = Enum.Font.SourceSansBold; txt.TextStrokeTransparency = 0
                         end
-                        
-                        local distStr = ""
-                        if myHrp then
-                            local dist = math.floor((handle.Position - myHrp.Position).Magnitude)
-                            distStr = " [" .. dist .. "m]"
-                        end
+                        local distStr = myHrp and (" [" .. math.floor((handle.Position - myHrp.Position).Magnitude) .. "m]") or ""
                         bg.Txt.Text = "🍎 " .. v.Name .. distStr
                         bg.Enabled = true
-                    elseif bg then
-                        bg.Enabled = false
-                    end
+                    elseif bg then bg.Enabled = false end
 
                     local hl = handle:FindFirstChild("FruitGlow")
                     if ESPFruitGlow then
                         if not hl then
                             hl = Instance.new("Highlight", handle)
-                            hl.Name = "FruitGlow"
-                            hl.FillColor = Color3.fromRGB(255, 120, 0)
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.4
+                            hl.Name = "FruitGlow"; hl.FillColor = Color3.fromRGB(255, 120, 0); hl.OutlineColor = Color3.fromRGB(255, 255, 255); hl.FillTransparency = 0.4
                         end
                         hl.Enabled = true
-                    elseif hl then
-                        hl.Enabled = false
-                    end
+                    elseif hl then hl.Enabled = false end
                 end
             end
         end
     end)
 end)
 
--- TELEPORT VÀ AUTO NHẶT & CẤT TRÁI ÁC QUỶ
+-- Teleport Fruit
 local function TeleportToFruit()
     pcall(function()
         local fruitsFound = {}
@@ -249,11 +321,7 @@ local function TeleportToFruit()
                 table.sort(fruitsFound, function(a, b) return (a.Part.Position - myHrp.Position).Magnitude < (b.Part.Position - myHrp.Position).Magnitude end)
                 local target = fruitsFound[1]
                 
-                Fluent:Notify({
-                    Title = "Jollibee Hub",
-                    Content = "Đang bay tới trái: " .. target.Tool.Name,
-                    Duration = 3
-                })
+                Fluent:Notify({ Title = "Jollibee Hub", Content = "Đang bay tới trái: " .. target.Tool.Name, Duration = 3 })
                 
                 task.spawn(function()
                     while target.Part and target.Part.Parent and (target.Part.Position - myHrp.Position).Magnitude > 5 do
@@ -279,74 +347,12 @@ local function TeleportToFruit()
                 end)
             end
         else
-            Fluent:Notify({
-                Title = "Jollibee Hub",
-                Content = "Không tìm thấy Trái Ác Quỷ nào trên sàn!",
-                Duration = 3
-            })
+            Fluent:Notify({ Title = "Jollibee Hub", Content = "Không tìm thấy Trái Ác Quỷ nào trên sàn!", Duration = 3 })
         end
     end)
 end
 
--- ESP PLAYER LOGIC
-local Lines = {}
-RSvc.RenderStepped:Connect(function()
-    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    for _, l in pairs(Lines) do pcall(function() l:Remove() end) end
-    Lines = {}
-
-    for _, p in pairs(P:GetPlayers()) do
-        if p ~= LP and p.Character then
-            local char = p.Character
-            local pHrp = char:FindFirstChild("HumanoidRootPart")
-            local pHum = char:FindFirstChildOfClass("Humanoid")
-
-            if pHrp and pHum and pHum.Health > 0 then
-                local hl = char:FindFirstChild("JollibeeHL")
-                if ESPBox then
-                    if not hl then
-                        hl = Instance.new("Highlight", char)
-                        hl.Name = "JollibeeHL"
-                        hl.FillColor = Color3.fromRGB(255, 50, 50)
-                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    end
-                    hl.Enabled = true
-                elseif hl then hl.Enabled = false end
-
-                local bg = pHrp:FindFirstChild("PlayerESP")
-                if not bg then
-                    bg = Instance.new("BillboardGui", pHrp)
-                    bg.Name = "PlayerESP"; bg.Size = UDim2.new(0, 200, 0, 50); bg.AlwaysOnTop = true; bg.StudsOffset = Vector3.new(0, 3.5, 0)
-                    local txt = Instance.new("TextLabel", bg)
-                    txt.Name = "Txt"; txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.TextColor3 = Color3.fromRGB(0, 255, 255); txt.TextSize = 13; txt.Font = Enum.Font.SourceSansBold; txt.TextStrokeTransparency = 0
-                end
-
-                bg.Enabled = (ESPName or ESPDist or ESPLevel or ESPHealth)
-                if bg.Enabled then
-                    local infoStr = ""
-                    if ESPName then infoStr = infoStr .. p.Name end
-                    if ESPLevel then infoStr = infoStr .. " [Lv. " .. GetLvl(p) .. "]" end
-                    if ESPHealth then infoStr = infoStr .. "\nHP: " .. math.floor(pHum.Health) .. "/" .. math.floor(pHum.MaxHealth) end
-                    if ESPDist and myHrp then infoStr = infoStr .. "\n[" .. math.floor((pHrp.Position - myHrp.Position).Magnitude) .. "m]" end
-                    bg.Txt.Text = infoStr
-                end
-
-                if ESPLine and myHrp then
-                    local pos, vis = Cam:WorldToViewportPoint(pHrp.Position)
-                    if vis then
-                        local l = Drawing.new("Line")
-                        l.From = Vector2.new(Cam.ViewportSize.X / 2, Cam.ViewportSize.Y)
-                        l.To = Vector2.new(pos.X, pos.Y)
-                        l.Color = Color3.fromRGB(0, 255, 255); l.Thickness = 1.5; l.Visible = true
-                        table.insert(Lines, l)
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Đi Trên Nước & Speed Hack
+-- Walk Speed & Walk On Water
 RSvc.RenderStepped:Connect(function()
     pcall(function()
         local chr = LP.Character
@@ -356,11 +362,7 @@ RSvc.RenderStepped:Connect(function()
         if WalkOnWater and hrp then
             if not WaterPart or not WaterPart.Parent then
                 WaterPart = Instance.new("Part", workspace)
-                WaterPart.Name = "JollibeeWaterPlatform"
-                WaterPart.Size = Vector3.new(300, 1, 300)
-                WaterPart.Anchored = true
-                WaterPart.Transparency = 0.5
-                WaterPart.Color = Color3.fromRGB(0, 170, 255)
+                WaterPart.Name = "JollibeeWaterPlatform"; WaterPart.Size = Vector3.new(300, 1, 300); WaterPart.Anchored = true; WaterPart.Transparency = 0.5; WaterPart.Color = Color3.fromRGB(0, 170, 255)
             end
             WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z)
         elseif WaterPart then WaterPart:Destroy(); WaterPart = nil end
@@ -375,7 +377,7 @@ UIS.JumpRequest:Connect(function()
 end)
 
 ----------------------------------------------------
--- THIẾT LẬP GIAO DIỆN FLUENT UI LIBRARY
+-- THIẾT LẬP FLUENT UI & SỬA LỖI KHÔNG CỦON ĐƯỢC TRANG
 ----------------------------------------------------
 local Window = Fluent:CreateWindow({
     Title = "Jollibee Hub | Blox Fruits V3",
@@ -386,14 +388,64 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- TIN CHÀO MỪNG CHUẨN FLUENT NOTIFY
+-- SỬA LỖI KHÔNG CUỘN ĐƯỢC TRANG: Tự động quét & mở khoá Scrolling cho tất cả ScrollingFrame
+task.spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            local gui = game:GetService("CoreGui"):FindFirstChild("Fluent") or LP:WaitForChild("PlayerGui"):FindFirstChild("Fluent")
+            if gui then
+                for _, scroll in pairs(gui:GetDescendants()) do
+                    if scroll:IsA("ScrollingFrame") then
+                        scroll.ScrollingEnabled = true
+                        scroll.ScrollBarThickness = 6
+                        scroll.CanvasSize = UDim2.new(0, 0, 0, scroll.UIListLayout.AbsoluteContentSize.Y + 20)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Tạo Nút Thu Gọn Màn Hình Hình Tròn (Floating Toggle Icon Button)
+local ToggleGui = Instance.new("ScreenGui")
+ToggleGui.Name = "JollibeeToggleGui"
+ToggleGui.ResetOnSpawn = false
+pcall(function() ToggleGui.Parent = game:GetService("CoreGui") end)
+if not ToggleGui.Parent then ToggleGui.Parent = LP:WaitForChild("PlayerGui") end
+
+local ToggleBtn = Instance.new("ImageButton")
+ToggleBtn.Name = "JollibeeToggleBtn"
+ToggleBtn.Parent = ToggleGui
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleBtn.Position = UDim2.new(0, 20, 0.4, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+ToggleBtn.Image = "rbxassetid://10723345828"
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+ToggleBtn.Visible = false
+
+local UICorner = Instance.new("UICorner", ToggleBtn)
+UICorner.CornerRadius = UDim2.new(1, 0)
+
+local UIStroke = Instance.new("UIStroke", ToggleBtn)
+UIStroke.Color = Color3.fromRGB(0, 170, 255)
+UIStroke.Thickness = 2
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    Window:Minimize()
+end)
+
+Window.OnMinimize:Connect(function(minimized)
+    ToggleBtn.Visible = minimized
+end)
+
 Fluent:Notify({
     Title = "Jollibee Hub | Official Interface",
     Content = "Chào mừng bạn đã đến với Jollibee Hub! Chúc bạn có trải nghiệm chơi game vui vẻ.",
     Duration = 6.5
 })
 
--- TẠO CÁC TABS GIAO DIỆN FLUENT
+-- TẠO CÁC TABS FLUENT
 local Tabs = {
     Farm = Window:AddTab({ Title = "Auto Farm", Icon = "sword" }),
     Fruit = Window:AddTab({ Title = "Fruit System", Icon = "apple" }),
@@ -402,114 +454,44 @@ local Tabs = {
     Admin = Window:AddTab({ Title = "Admin Panel", Icon = "shield" })
 }
 
--- TAB 1: AUTO FARM
+-- TAB AUTO FARM
 Tabs.Farm:AddSection("Farm Cấp Độ & Nhiệm Vụ")
+Tabs.Farm:AddToggle("AutoFarm", {Title = "Auto Farm Level", Default = false}):OnChanged(function(Value) AutoFarm = Value if not Value then StopFly() end end)
+Tabs.Farm:AddToggle("BringMob", {Title = "Gom Quái (Bring Mob)", Default = false}):OnChanged(function(Value) BringMob = Value end)
+Tabs.Farm:AddToggle("FastAttack", {Title = "Đánh Nhanh (Fast Attack)", Default = false}):OnChanged(function(Value) FastAttack = Value end)
+Tabs.Farm:AddToggle("FastDistance", {Title = "Đánh Xa (Hitbox Extension)", Default = false}):OnChanged(function(Value) FastDistance = Value end)
 
-local FarmToggle = Tabs.Farm:AddToggle("AutoFarm", {Title = "Auto Farm Level", Default = false })
-FarmToggle:OnChanged(function(Value) AutoFarm = Value if not Value then StopFly() end end)
-
-local BringToggle = Tabs.Farm:AddToggle("BringMob", {Title = "Gom Quái (Bring Mob)", Default = false })
-BringToggle:OnChanged(function(Value) BringMob = Value end)
-
-local FastAttackToggle = Tabs.Farm:AddToggle("FastAttack", {Title = "Đánh Nhanh (Fast Attack)", Default = false })
-FastAttackToggle:OnChanged(function(Value) FastAttack = Value end)
-
-local HitboxToggle = Tabs.Farm:AddToggle("FastDistance", {Title = "Đánh Xa (Hitbox Extension)", Default = false })
-HitboxToggle:OnChanged(function(Value) FastDistance = Value end)
-
--- TAB 2: FRUIT SYSTEM
+-- TAB FRUIT SYSTEM
 Tabs.Fruit:AddSection("Định Vị Trái Ác Quỷ")
-
-local ESPFruitToggle = Tabs.Fruit:AddToggle("ESPFruit", {Title = "ESP Trái Ác Quỷ (Tên + Khoảng Cách)", Default = false })
-ESPFruitToggle:OnChanged(function(Value) ESPFruit = Value end)
-
-local ESPGlowToggle = Tabs.Fruit:AddToggle("ESPFruitGlow", {Title = "ESP Khung Phát Sáng (Fruit Glow)", Default = false })
-ESPGlowToggle:OnChanged(function(Value) ESPFruitGlow = Value end)
+Tabs.Fruit:AddToggle("ESPFruit", {Title = "ESP Trái Ác Quỷ (Tên + Khoảng Cách)", Default = false}):OnChanged(function(Value) ESPFruit = Value end)
+Tabs.Fruit:AddToggle("ESPFruitGlow", {Title = "ESP Khung Phát Sáng (Fruit Glow)", Default = false}):OnChanged(function(Value) ESPFruitGlow = Value end)
 
 Tabs.Fruit:AddSection("Nhặt & Teleport Trái")
+Tabs.Fruit:AddButton({ Title = "🚀 Bay Đến Nhặt Trái Gần Nhất", Callback = function() TeleportToFruit() end })
+Tabs.Fruit:AddToggle("AutoStoreFruit", {Title = "Auto Cất Trái Vào Rương (Auto Store)", Default = false}):OnChanged(function(Value) AutoStoreFruit = Value end)
 
-Tabs.Fruit:AddButton({
-    Title = "🚀 Bay Đến Nhặt Trái Gần Nhất",
-    Callback = function() TeleportToFruit() end
-})
-
-local StoreToggle = Tabs.Fruit:AddToggle("AutoStoreFruit", {Title = "Auto Cất Trái Vào Rương (Auto Store)", Default = false })
-StoreToggle:OnChanged(function(Value) AutoStoreFruit = Value end)
-
--- TAB 3: ESP PLAYER
+-- TAB ESP PLAYER
 Tabs.ESP:AddSection("Nhìn Xuyên Tường Người Chơi")
+Tabs.ESP:AddToggle("ESPBox", {Title = "ESP Box (Khung Đỏ)", Default = false}):OnChanged(function(Value) ESPBox = Value end)
+Tabs.ESP:AddToggle("ESPName", {Title = "ESP Tên", Default = false}):OnChanged(function(Value) ESPName = Value end)
+Tabs.ESP:AddToggle("ESPLevel", {Title = "ESP Level", Default = false}):OnChanged(function(Value) ESPLevel = Value end)
+Tabs.ESP:AddToggle("ESPHealth", {Title = "ESP Máu", Default = false}):OnChanged(function(Value) ESPHealth = Value end)
+Tabs.ESP:AddToggle("ESPDist", {Title = "ESP Khoảng Cách", Default = false}):OnChanged(function(Value) ESPDist = Value end)
+Tabs.ESP:AddToggle("ESPLine", {Title = "ESP Đường Kẻ (Tracer Line)", Default = false}):OnChanged(function(Value) ESPLine = Value end)
 
-local BoxToggle = Tabs.ESP:AddToggle("ESPBox", {Title = "ESP Box (Khung Đỏ)", Default = false })
-BoxToggle:OnChanged(function(Value) ESPBox = Value end)
-
-local NameToggle = Tabs.ESP:AddToggle("ESPName", {Title = "ESP Tên", Default = false })
-NameToggle:OnChanged(function(Value) ESPName = Value end)
-
-local LevelToggle = Tabs.ESP:AddToggle("ESPLevel", {Title = "ESP Level", Default = false })
-LevelToggle:OnChanged(function(Value) ESPLevel = Value end)
-
-local HealthToggle = Tabs.ESP:AddToggle("ESPHealth", {Title = "ESP Máu", Default = false })
-HealthToggle:OnChanged(function(Value) ESPHealth = Value end)
-
-local DistToggle = Tabs.ESP:AddToggle("ESPDist", {Title = "ESP Khoảng Cách", Default = false })
-DistToggle:OnChanged(function(Value) ESPDist = Value end)
-
-local LineToggle = Tabs.ESP:AddToggle("ESPLine", {Title = "ESP Đường Kẻ (Tracer Line)", Default = false })
-LineToggle:OnChanged(function(Value) ESPLine = Value end)
-
--- TAB 4: MISC & UTILITY
+-- TAB MISC
 Tabs.Misc:AddSection("Di Chuyển")
-
-local SpeedToggle = Tabs.Misc:AddToggle("SpeedHack", {Title = "Hack Tốc Độ (Speed Hack)", Default = false })
-SpeedToggle:OnChanged(function(Value) SpeedHack = Value end)
-
-local SpeedSlider = Tabs.Misc:AddSlider("WalkSpeedValue", {
-    Title = "Chỉnh Tốc Độ Chạy",
-    Min = 16,
-    Max = 300,
-    Default = 32,
-    Rounding = 0,
-    Callback = function(Value) WalkSpeedValue = Value end
-})
-
-local JumpToggle = Tabs.Misc:AddToggle("InfJump", {Title = "Nhảy Vô Hạn (Inf Jump)", Default = false })
-JumpToggle:OnChanged(function(Value) InfJump = Value end)
-
-local WaterToggle = Tabs.Misc:AddToggle("WalkOnWater", {Title = "Đi Trên Nước (Walk On Water)", Default = false })
-WaterToggle:OnChanged(function(Value) WalkOnWater = Value end)
+Tabs.Misc:AddToggle("SpeedHack", {Title = "Hack Tốc Độ (Speed Hack)", Default = false}):OnChanged(function(Value) SpeedHack = Value end)
+Tabs.Misc:AddSlider("WalkSpeedValue", { Title = "Chỉnh Tốc Độ Chạy", Min = 16, Max = 300, Default = 32, Rounding = 0, Callback = function(Value) WalkSpeedValue = Value end })
+Tabs.Misc:AddToggle("InfJump", {Title = "Nhảy Vô Hạn (Inf Jump)", Default = false}):OnChanged(function(Value) InfJump = Value end)
+Tabs.Misc:AddToggle("WalkOnWater", {Title = "Đi Trên Nước (Walk On Water)", Default = false}):OnChanged(function(Value) WalkOnWater = Value end)
 
 Tabs.Misc:AddSection("Tối Ưu Game")
+Tabs.Misc:AddButton({ Title = "Xóa Sương Mù (Remove Fog)", Callback = function() pcall(function() L.FogEnd, L.FogStart = 9e19, 9e19 for _, v in pairs(L:GetChildren()) do if v:IsA("Atmosphere") or v:IsA("PostEffect") then v:Destroy() end end end) end })
+Tabs.Misc:AddButton({ Title = "Buff FPS Siêu Cấp", Callback = function() pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 L.GlobalShadows = false for _, v in pairs(workspace:GetDescendants()) do if v:IsA("BasePart") then v.Material, v.Reflectance = Enum.Material.SmoothPlastic, 0 elseif v:IsA("Decal") or v:IsA("Texture") then v:Destroy() elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled = false end end end) end })
 
-Tabs.Misc:AddButton({
-    Title = "Xóa Sương Mù (Remove Fog)",
-    Callback = function()
-        pcall(function()
-            L.FogEnd, L.FogStart = 9e19, 9e19
-            for _, v in pairs(L:GetChildren()) do if v:IsA("Atmosphere") or v:IsA("PostEffect") then v:Destroy() end end
-        end)
-    end
-})
-
-Tabs.Misc:AddButton({
-    Title = "Buff FPS Siêu Cấp",
-    Callback = function()
-        pcall(function()
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-            L.GlobalShadows = false
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("BasePart") then v.Material, v.Reflectance = Enum.Material.SmoothPlastic, 0
-                elseif v:IsA("Decal") or v:IsA("Texture") then v:Destroy()
-                elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled = false end
-            end
-        end)
-    end
-})
-
--- TAB 5: ADMIN
+-- TAB ADMIN
 Tabs.Admin:AddSection("Chức Năng Quyền Năng")
+Tabs.Admin:AddToggle("GodMode", {Title = "Bất Tử (God Mode)", Default = false}):OnChanged(function(Value) GodMode = Value end)
 
-local GodToggle = Tabs.Admin:AddToggle("GodMode", {Title = "Bất Tử (God Mode)", Default = false })
-GodToggle:OnChanged(function(Value) GodMode = Value end)
-
--- Mặc định chọn Tab Auto Farm khi mở
 Window:SelectTab(1)
