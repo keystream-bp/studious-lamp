@@ -18,7 +18,7 @@ end)
 local P, L, TS, RS, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("RunService"), game:GetService("UserInputService")
 local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
 
--- Anti-AFK an toàn (dùng Idled không click giả lập)
+-- Anti-AFK
 LP.Idled:Connect(function()
     local bb = game:GetService("VirtualUser")
     bb:CaptureController()
@@ -70,7 +70,7 @@ local function StopFly()
     if hum then hum.PlatformStand = false end
 end
 
--- Vòng lặp Tấn công đã SỬA LỖI UI
+-- Vòng lặp Tấn công
 task.spawn(function()
     while true do
         if AutoFarm or AutoBones or AutoKatakuri or AutoBoss then
@@ -86,7 +86,6 @@ task.spawn(function()
                             end 
                         end
                     else
-                        -- Tấn công trực tiếp bằng Tool Activate không chạm vào UI
                         tool:Activate()
                         if RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net") then
                             pcall(function() RS.Modules.Net:FindFirstChild("RegisterAttack"):InvokeServer() end)
@@ -252,49 +251,147 @@ end)
 
 UIS.JumpRequest:Connect(function() if InfJump then local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid") if hum then hum:ChangeState("Jumping") end end end)
 
-local Window = Fluent:CreateWindow({Title = "Jollibee Hub", SubTitle = "ThTuann Edition", TabWidth = 160, Size = UDim2.fromOffset(580, 460), Theme = "Dark", MinimizeKey = Enum.KeyCode.LeftControl})
+-- Rayfield UI Setup
+local Window = Rayfield:CreateWindow({
+   Name = "JOLLIBEE Hub",
+   LoadingTitle = "JOLLIBEE Hub",
+   LoadingSubtitle = "by Andz Dev",
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = false
+})
 
-local Tabs = {
-    Farm = Window:AddTab({ Title = "Auto Farm", Icon = "sword" }),
-    Quest = Window:AddTab({ Title = "Farm Khác", Icon = "target" }),
-    Stats = Window:AddTab({ Title = "Auto Stats", Icon = "bar-chart" }),
-    Fruit = Window:AddTab({ Title = "Fruit System", Icon = "apple" }),
-    ESP = Window:AddTab({ Title = "ESP Player", Icon = "eye" }),
-    Misc = Window:AddTab({ Title = "Misc", Icon = "settings" })
-}
+local TabFarm = Window:CreateTab("Auto Farm", 4483362458)
+local TabQuest = Window:CreateTab("Farm Khác", 4483362458)
+local TabStats = Window:CreateTab("Auto Stats", 4483362458)
+local TabFruit = Window:CreateTab("Fruit System", 4483362458)
+local TabESP = Window:CreateTab("ESP Player", 4483362458)
+local TabMisc = Window:CreateTab("Misc", 4483362458)
 
-Tabs.Farm:AddSection("Farm Cấp Độ")
-Tabs.Farm:AddToggle("AutoFarm", {Title = "Auto Farm Level", Default = false}):OnChanged(function(v) AutoFarm = v if not v then StopFly() end end)
-Tabs.Farm:AddToggle("BringMob", {Title = "Gom Quái (Bring Mob)", Default = false}):OnChanged(function(v) BringMob = v end)
-Tabs.Farm:AddToggle("FastAttack", {Title = "Đánh Nhanh (Fast Attack)", Default = false}):OnChanged(function(v) FastAttack = v end)
-Tabs.Farm:AddToggle("FastDistance", {Title = "Mở Rộng Hitbox", Default = false}):OnChanged(function(v) FastDistance = v end)
+-- Tab Auto Farm
+TabFarm:CreateSection("Farm Cấp Độ")
+TabFarm:CreateToggle({
+   Name = "Auto Farm Level",
+   CurrentValue = false,
+   Callback = function(v) AutoFarm = v if not v then StopFly() end end,
+})
+TabFarm:CreateToggle({
+   Name = "Gom Quái (Bring Mob)",
+   CurrentValue = false,
+   Callback = function(v) BringMob = v end,
+})
+TabFarm:CreateToggle({
+   Name = "Đánh Nhanh (Fast Attack)",
+   CurrentValue = false,
+   Callback = function(v) FastAttack = v end,
+})
+TabFarm:CreateToggle({
+   Name = "Mở Rộng Hitbox",
+   CurrentValue = false,
+   Callback = function(v) FastDistance = v end,
+})
 
-Tabs.Quest:AddSection("Farm Nâng Cao")
-Tabs.Quest:AddToggle("AutoBones", {Title = "Auto Farm Xương", Default = false}):OnChanged(function(v) AutoBones = v end)
-Tabs.Quest:AddToggle("AutoKatakuri", {Title = "Auto Katakuri", Default = false}):OnChanged(function(v) AutoKatakuri = v end)
-Tabs.Quest:AddToggle("AutoBoss", {Title = "Auto Farm Boss", Default = false}):OnChanged(function(v) AutoBoss = v end)
+-- Tab Farm Khác
+TabQuest:CreateSection("Farm Nâng Cao")
+TabQuest:CreateToggle({
+   Name = "Auto Farm Xương",
+   CurrentValue = false,
+   Callback = function(v) AutoBones = v end,
+})
+TabQuest:CreateToggle({
+   Name = "Auto Katakuri",
+   CurrentValue = false,
+   Callback = function(v) AutoKatakuri = v end,
+})
+TabQuest:CreateToggle({
+   Name = "Auto Farm Boss",
+   CurrentValue = false,
+   Callback = function(v) AutoBoss = v end,
+})
 
-Tabs.Stats:AddSection("Auto Stats")
-Tabs.Stats:AddToggle("AutoStatsMelee", {Title = "Melee", Default = false}):OnChanged(function(v) AutoStatsMelee = v end)
-Tabs.Stats:AddToggle("AutoStatsDefense", {Title = "Defense", Default = false}):OnChanged(function(v) AutoStatsDefense = v end)
-Tabs.Stats:AddToggle("AutoStatsSword", {Title = "Sword", Default = false}):OnChanged(function(v) AutoStatsSword = v end)
-Tabs.Stats:AddToggle("AutoStatsFruit", {Title = "Demon Fruit", Default = false}):OnChanged(function(v) AutoStatsFruit = v end)
+-- Tab Auto Stats
+TabStats:CreateSection("Auto Stats")
+TabStats:CreateToggle({
+   Name = "Melee",
+   CurrentValue = false,
+   Callback = function(v) AutoStatsMelee = v end,
+})
+TabStats:CreateToggle({
+   Name = "Defense",
+   CurrentValue = false,
+   Callback = function(v) AutoStatsDefense = v end,
+})
+TabStats:CreateToggle({
+   Name = "Sword",
+   CurrentValue = false,
+   Callback = function(v) AutoStatsSword = v end,
+})
+TabStats:CreateToggle({
+   Name = "Demon Fruit",
+   CurrentValue = false,
+   Callback = function(v) AutoStatsFruit = v end,
+})
 
-Tabs.Fruit:AddSection("Trái Ác Quỷ")
-Tabs.Fruit:AddToggle("ESPFruit", {Title = "ESP Trái Ác Quỷ", Default = false}):OnChanged(function(v) ESPFruit = v end)
-Tabs.Fruit:AddButton({ Title = "🚀 Bay Đến Nhặt Trái", Callback = TeleportToFruit })
-Tabs.Fruit:AddButton({ Title = "🎰 Random Trái", Callback = function() RS.Remotes.CommF_:InvokeServer("Cousin", "Buy") end })
+-- Tab Fruit
+TabFruit:CreateSection("Trái Ác Quỷ")
+TabFruit:CreateToggle({
+   Name = "ESP Trái Ác Quỷ",
+   CurrentValue = false,
+   Callback = function(v) ESPFruit = v end,
+})
+TabFruit:CreateButton({
+   Name = "🚀 Bay Đến Nhặt Trái",
+   Callback = TeleportToFruit,
+})
+TabFruit:CreateButton({
+   Name = "🎰 Random Trái",
+   Callback = function() RS.Remotes.CommF_:InvokeServer("Cousin", "Buy") end,
+})
 
-Tabs.ESP:AddSection("ESP")
-Tabs.ESP:AddToggle("ESPBox", {Title = "ESP Box", Default = false}):OnChanged(function(v) ESPBox = v end)
-Tabs.ESP:AddToggle("ESPName", {Title = "ESP Tên", Default = false}):OnChanged(function(v) ESPName = v end)
-Tabs.ESP:AddToggle("ESPDist", {Title = "ESP Khoảng Cách", Default = false}):OnChanged(function(v) ESPDist = v end)
-Tabs.ESP:AddToggle("ESPLine", {Title = "ESP Đường Kẻ", Default = false}):OnChanged(function(v) ESPLine = v end)
+-- Tab ESP
+TabESP:CreateSection("ESP Player")
+TabESP:CreateToggle({
+   Name = "ESP Box",
+   CurrentValue = false,
+   Callback = function(v) ESPBox = v end,
+})
+TabESP:CreateToggle({
+   Name = "ESP Tên",
+   CurrentValue = false,
+   Callback = function(v) ESPName = v end,
+})
+TabESP:CreateToggle({
+   Name = "ESP Khoảng Cách",
+   CurrentValue = false,
+   Callback = function(v) ESPDist = v end,
+})
+TabESP:CreateToggle({
+   Name = "ESP Đường Kẻ",
+   CurrentValue = false,
+   Callback = function(v) ESPLine = v end,
+})
 
-Tabs.Misc:AddSection("Tiện Ích")
-Tabs.Misc:AddToggle("SpeedHack", {Title = "Hack Tốc Độ", Default = false}):OnChanged(function(v) SpeedHack = v end)
-Tabs.Misc:AddSlider("WalkSpeedValue", { Title = "Tốc Độ", Min = 16, Max = 300, Default = 32, Rounding = 0, Callback = function(v) WalkSpeedValue = v end })
-Tabs.Misc:AddToggle("InfJump", {Title = "Nhảy Vô Hạn", Default = false}):OnChanged(function(v) InfJump = v end)
-Tabs.Misc:AddToggle("WalkOnWater", {Title = "Đi Trên Nước", Default = false}):OnChanged(function(v) WalkOnWater = v end)
-
-Window:SelectTab(1)
+-- Tab Misc
+TabMisc:CreateSection("Tiện Ích")
+TabMisc:CreateToggle({
+   Name = "Hack Tốc Độ",
+   CurrentValue = false,
+   Callback = function(v) SpeedHack = v end,
+})
+TabMisc:CreateSlider({
+   Name = "Tốc Độ",
+   Range = {16, 300},
+   Increment = 1,
+   Suffix = " Speed",
+   CurrentValue = 32,
+   Callback = function(v) WalkSpeedValue = v end,
+})
+TabMisc:CreateToggle({
+   Name = "Nhảy Vô Hạn",
+   CurrentValue = false,
+   Callback = function(v) InfJump = v end,
+})
+TabMisc:CreateToggle({
+   Name = "Đi Trên Nước",
+   CurrentValue = false,
+   Callback = function(v) WalkOnWater = v end,
+})
