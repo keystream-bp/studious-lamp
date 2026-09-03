@@ -1,7 +1,5 @@
--- Tải thư viện Fluent UI Library
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- Bypass Anti-Cheat & Bảo vệ Script
 pcall(function()
     local g = getgenv and getgenv() or _G
     if g.debug then g.debug.info, g.debug.getupvalue, g.debug.getconstant = function() end, function() end, function() end end
@@ -17,21 +15,16 @@ pcall(function()
     end
 end)
 
--- Khai báo Dịch vụ Roblox
-local P, L, TS, RS, VU, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService")
+local P, L, TS, RS, VU, RSvc, UIS, CoreGui = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService"), game:GetService("CoreGui")
 local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
 
--- Chống AFK
 LP.Idled:Connect(function() VU:Button2Down(Vector2.zero, Cam.CFrame) task.wait(1) VU:Button2Up(Vector2.zero, Cam.CFrame) end)
 
--- Biến Trạng Thái Chức Năng
-local AutoFarm, BringMob, FastAttack, FastDistance = false, false, false, false
-local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, ESPFruitGlow, ESPLevel, ESPHealth = false, false, false, false, false, false, false, false
-local AutoStoreFruit, WalkOnWater, SpeedHack, WalkSpeedValue = false, false, false, 32
-local InfJump, GodMode = false, false
+local AutoFarm, BringMob, FastAttack, FastDistance, AutoBones, AutoKatakuri, AutoBoss, AutoFarmSea = false, false, false, false, false, false, false, false
+local AutoStatsMelee, AutoStatsDefense, AutoStatsSword, AutoStatsFruit = false, false, false, false
+local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, AutoStoreFruit, WalkOnWater, SpeedHack, WalkSpeedValue, InfJump = false, false, false, false, false, false, false, false, 32, false
 local CurTween, CurPos, WaterPart
 
--- Dữ liệu Nhiệm vụ Blox Fruits
 local Quests = {
     {1, "BanditQuest1", 1, "Bandit", CFrame.new(1059, 16, 1549), CFrame.new(1145, 16, 1630)},
     {10, "JungleQuest", 1, "Monkey", CFrame.new(-1598, 36, 153), CFrame.new(-1448, 50, 63)},
@@ -41,19 +34,9 @@ local Quests = {
     {90, "SnowQuest", 1, "Snow Bandit", CFrame.new(1385, 87, -1298), CFrame.new(1300, 87, -1350)}
 }
 
-local function GetLvl(p)
-    local target, lvl = p or LP, 1
-    pcall(function() lvl = target:FindFirstChild("Data") and target.Data.Level.Value or target.Level.Value end)
-    return lvl
-end
+local function GetLvl(p) local target, lvl = p or LP, 1 pcall(function() lvl = target:FindFirstChild("Data") and target.Data.Level.Value or target.Level.Value end) return lvl end
+local function GetQ() local l, c = GetLvl(), Quests[1] for _, q in ipairs(Quests) do if l >= q[1] then c = q end end return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]} end
 
-local function GetQ()
-    local l, c = GetLvl(), Quests[1]
-    for _, q in ipairs(Quests) do if l >= q[1] then c = q end end
-    return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]}
-end
-
--- Bay Tween
 local function FlyTo(targetCF, speed)
     speed = speed or 250
     local chr = LP.Character
@@ -82,7 +65,27 @@ local function StopFly()
     if hum then hum.PlatformStand = false end
 end
 
--- Auto Farm Loop
+task.spawn(function()
+    while true do
+        task.wait(FastAttack and 0.015 or 0.15)
+        if AutoFarm or AutoBones or AutoKatakuri or AutoBoss then
+            pcall(function()
+                local chr = LP.Character
+                if chr and chr:FindFirstChild("Humanoid") and chr.Humanoid.Health > 0 then
+                    local tool = chr:FindFirstChildOfClass("Tool")
+                    if not tool then
+                        for _, t in pairs(LP.Backpack:GetChildren()) do if t:IsA("Tool") then chr.Humanoid:EquipTool(t) break end end
+                    else
+                        tool:Activate()
+                        VU:Button1Down(Vector2.zero, Cam.CFrame) task.wait(0.005) VU:Button1Up(Vector2.zero, Cam.CFrame)
+                        if FastDistance and tool:FindFirstChild("Handle") then tool.Handle.Size, tool.Handle.CanCollide = Vector3.new(50, 50, 50), false end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
 RSvc.Heartbeat:Connect(function()
     if AutoFarm then
         pcall(function()
@@ -91,7 +94,6 @@ RSvc.Heartbeat:Connect(function()
             hrp.Velocity = Vector3.zero
             local q, qGui = GetQ(), LP.PlayerGui.Main:FindFirstChild("Quest")
             local hasQ = qGui and qGui.Visible and qGui.Container.QuestTitle.Title.Text ~= ""
-
             if not hasQ then
                 if (hrp.Position - q.Npc.Position).Magnitude > 12 then FlyTo(q.Npc)
                 else StopFly(); hrp.CFrame = q.Npc; RS.Remotes.CommF_:InvokeServer("StartQuest", q.QName, q.QNum) end
@@ -104,7 +106,6 @@ RSvc.Heartbeat:Connect(function()
                         end
                     end
                 end
-
                 if #mobList == 0 then FlyTo(q.Mob)
                 else
                     table.sort(mobList, function(a, b) return a.Dist < b.Dist end)
@@ -112,13 +113,10 @@ RSvc.Heartbeat:Connect(function()
                     StopFly()
                     local mHrp = mainMob.HumanoidRootPart
                     hrp.CFrame = CFrame.new(mHrp.Position + Vector3.new(0, 10, 0), mHrp.Position)
-
                     if BringMob then
                         for i = 1, math.min(3, #mobList) do
                             local om = mobList[i].Mob
-                            if om:FindFirstChild("HumanoidRootPart") then
-                                om.HumanoidRootPart.CFrame, om.HumanoidRootPart.CanCollide = CFrame.new(mHrp.Position), false
-                            end
+                            if om:FindFirstChild("HumanoidRootPart") then om.HumanoidRootPart.CFrame, om.HumanoidRootPart.CanCollide = CFrame.new(mHrp.Position), false end
                         end
                     end
                 end
@@ -127,32 +125,19 @@ RSvc.Heartbeat:Connect(function()
     end
 end)
 
--- Fast Attack
 task.spawn(function()
-    while true do
-        task.wait(FastAttack and 0.03 or 0.15)
-        if AutoFarm then
-            pcall(function()
-                local chr = LP.Character
-                if chr and chr:FindFirstChild("Humanoid") and chr.Humanoid.Health > 0 then
-                    local tool = chr:FindFirstChildOfClass("Tool")
-                    if not tool then
-                        for _, t in pairs(LP.Backpack:GetChildren()) do if t:IsA("Tool") then chr.Humanoid:EquipTool(t) break end end
-                    else
-                        tool:Activate()
-                        VU:Button1Down(Vector2.zero, Cam.CFrame) task.wait(0.01) VU:Button1Up(Vector2.zero, Cam.CFrame)
-                        if FastDistance and tool:FindFirstChild("Handle") then tool.Handle.Size, tool.Handle.CanCollide = Vector3.new(40, 40, 40), false end
-                    end
-                end
-            end)
-        end
+    while task.wait(0.5) do
+        pcall(function()
+            if AutoStatsMelee then RS.Remotes.CommF_:InvokeServer("AddPoint", "Melee", 3) end
+            if AutoStatsDefense then RS.Remotes.CommF_:InvokeServer("AddPoint", "Defense", 3) end
+            if AutoStatsSword then RS.Remotes.CommF_:InvokeServer("AddPoint", "Sword", 3) end
+            if AutoStatsFruit then RS.Remotes.CommF_:InvokeServer("AddPoint", "Demon Fruit", 3) end
+        end)
     end
 end)
 
--- ESP Player
 local ESP_Cache = {}
-
-local function CreateESPForPlayer(plr)
+local function CreateESP(plr)
     if plr == LP or ESP_Cache[plr] then return end
     local line, box, bg, txt = Drawing.new("Line"), Instance.new("Highlight"), Instance.new("BillboardGui"), Instance.new("TextLabel")
     line.Visible, line.Color, line.Thickness = false, Color3.fromRGB(0, 255, 255), 1.5
@@ -162,17 +147,9 @@ local function CreateESPForPlayer(plr)
     ESP_Cache[plr] = {Line = line, Box = box, Billboard = bg, TextLabel = txt}
 end
 
-local function RemoveESPForPlayer(plr)
-    local data = ESP_Cache[plr]
-    if data then
-        pcall(function() data.Line:Remove() data.Box:Destroy() data.Billboard:Destroy() end)
-        ESP_Cache[plr] = nil
-    end
-end
-
-for _, plr in pairs(P:GetPlayers()) do CreateESPForPlayer(plr) end
-P.PlayerAdded:Connect(CreateESPForPlayer)
-P.PlayerRemoving:Connect(RemoveESPForPlayer)
+for _, plr in pairs(P:GetPlayers()) do CreateESP(plr) end
+P.PlayerAdded:Connect(CreateESP)
+P.PlayerRemoving:Connect(function(p) if ESP_Cache[p] then pcall(function() ESP_Cache[p].Line:Remove() ESP_Cache[p].Box:Destroy() ESP_Cache[p].Billboard:Destroy() end) ESP_Cache[p] = nil end end)
 
 RSvc.RenderStepped:Connect(function()
     local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -180,11 +157,11 @@ RSvc.RenderStepped:Connect(function()
         local char = plr.Character
         local pHrp, pHum = char and char:FindFirstChild("HumanoidRootPart"), char and char:FindFirstChildOfClass("Humanoid")
         if char and pHrp and pHum and pHum.Health > 0 then
-            if ESPBox then if data.Box.Parent ~= char then data.Box.Parent = char end data.Box.Enabled = true else data.Box.Enabled = false end
-            if ESPName or ESPLevel or ESPHealth or ESPDist then
+            data.Box.Enabled = ESPBox
+            if data.Box.Parent ~= char then data.Box.Parent = char end
+            if ESPName or ESPDist then
                 if data.Billboard.Parent ~= pHrp then data.Billboard.Parent = pHrp end
-                local info = (ESPName and plr.Name or "") .. (ESPLevel and " [Lv. " .. GetLvl(plr) .. "]" or "") .. (ESPHealth and "\nHP: " .. math.floor(pHum.Health) .. "/" .. math.floor(pHum.MaxHealth) or "") .. (ESPDist and myHrp and "\n[" .. math.floor((pHrp.Position - myHrp.Position).Magnitude) .. "m]" or "")
-                data.TextLabel.Text, data.Billboard.Enabled = info, true
+                data.TextLabel.Text, data.Billboard.Enabled = (ESPName and plr.Name or "") .. (ESPDist and myHrp and "\n[" .. math.floor((pHrp.Position - myHrp.Position).Magnitude) .. "m]" or ""), true
             else data.Billboard.Enabled = false end
             if ESPLine and myHrp then
                 local pos, vis = Cam:WorldToViewportPoint(pHrp.Position)
@@ -194,7 +171,6 @@ RSvc.RenderStepped:Connect(function()
     end
 end)
 
--- ESP Fruit
 RSvc.RenderStepped:Connect(function()
     pcall(function()
         local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -212,12 +188,6 @@ RSvc.RenderStepped:Connect(function()
                         end
                         bg.Txt.Text, bg.Enabled = "🍎 " .. v.Name .. (myHrp and (" [" .. math.floor((handle.Position - myHrp.Position).Magnitude) .. "m]") or ""), true
                     elseif bg then bg.Enabled = false end
-
-                    local hl = handle:FindFirstChild("FruitGlow")
-                    if ESPFruitGlow then
-                        if not hl then hl = Instance.new("Highlight", handle); hl.Name, hl.FillColor, hl.OutlineColor, hl.FillTransparency = "FruitGlow", Color3.fromRGB(255, 120, 0), Color3.fromRGB(255, 255, 255), 0.4 end
-                        hl.Enabled = true
-                    elseif hl then hl.Enabled = false end
                 end
             end
         end
@@ -238,25 +208,13 @@ local function TeleportToFruit()
             if myHrp then
                 table.sort(fruits, function(a, b) return (a.Part.Position - myHrp.Position).Magnitude < (b.Part.Position - myHrp.Position).Magnitude end)
                 local target = fruits[1]
-                Fluent:Notify({ Title = "Jollibee Hub", Content = "Đang bay tới trái: " .. target.Tool.Name, Duration = 3 })
                 task.spawn(function()
                     while target.Part and target.Part.Parent and (target.Part.Position - myHrp.Position).Magnitude > 5 do FlyTo(target.Part.CFrame, 300) task.wait(0.05) end
                     StopFly()
-                    if target.Part and target.Part.Parent then
-                        myHrp.CFrame = target.Part.CFrame
-                        firetouchinterest(myHrp, target.Part, 0) task.wait(0.1) firetouchinterest(myHrp, target.Part, 1)
-                    end
-                    if AutoStoreFruit then
-                        task.wait(0.5)
-                        pcall(function()
-                            for _, tool in pairs(LP.Backpack:GetChildren()) do
-                                if tool:IsA("Tool") and tool.Name:find("Fruit") then RS.Remotes.CommF_:InvokeServer("StoreFruit", tool.Name, tool) end
-                            end
-                        end)
-                    end
+                    if target.Part and target.Part.Parent then myHrp.CFrame = target.Part.CFrame firetouchinterest(myHrp, target.Part, 0) task.wait(0.1) firetouchinterest(myHrp, target.Part, 1) end
                 end)
             end
-        else Fluent:Notify({ Title = "Jollibee Hub", Content = "Không tìm thấy Trái Ác Quỷ nào!", Duration = 3 }) end
+        end
     end)
 end
 
@@ -268,122 +226,70 @@ RSvc.RenderStepped:Connect(function()
         if WalkOnWater and hrp then
             if not WaterPart or not WaterPart.Parent then
                 WaterPart = Instance.new("Part", workspace)
-                WaterPart.Name, WaterPart.Size, WaterPart.Anchored, WaterPart.Transparency, WaterPart.Color = "JollibeeWaterPlatform", Vector3.new(300, 1, 300), true, 0.5, Color3.fromRGB(0, 170, 255)
+                WaterPart.Name, WaterPart.Size, WaterPart.Anchored, WaterPart.Transparency, WaterPart.Color = "WaterPlatform", Vector3.new(300, 1, 300), true, 0.5, Color3.fromRGB(0, 170, 255)
             end
             WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z)
         elseif WaterPart then WaterPart:Destroy(); WaterPart = nil end
     end)
 end)
 
-UIS.JumpRequest:Connect(function() if InfJump then local hum = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") or LP.Character:FindFirstChildOfClass("Humanoid") if hum then hum:ChangeState("Jumping") end end end)
+UIS.JumpRequest:Connect(function() if InfJump then local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid") if hum then hum:ChangeState("Jumping") end end end)
 
-----------------------------------------------------
--- THIẾT LẬP FLUENT UI & TẠO TAB / NÚT TRÒN LOGO
-----------------------------------------------------
-local Window = Fluent:CreateWindow({
-    Title = "Jollibee Hub | Blox Fruits V3",
-    SubTitle = "by Jollibee Team",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
-})
+local Window = Fluent:CreateWindow({Title = "Jollibee Hub", SubTitle = "ThTuann Edition", TabWidth = 160, Size = UDim2.fromOffset(580, 460), Theme = "Dark", MinimizeKey = Enum.KeyCode.LeftControl})
 
--- Tự động sửa lỗi cuộn trang trên Executor mobile
-task.spawn(function()
-    while task.wait(0.5) do
-        pcall(function()
-            local gui = game:GetService("CoreGui"):FindFirstChild("Fluent") or LP:WaitForChild("PlayerGui"):FindFirstChild("Fluent")
-            if gui then
-                for _, scroll in pairs(gui:GetDescendants()) do
-                    if scroll:IsA("ScrollingFrame") then
-                        scroll.ScrollingEnabled = true
-                        scroll.ScrollBarThickness = 6
-                        if scroll:FindFirstChildOfClass("UIListLayout") then
-                            scroll.CanvasSize = UDim2.new(0, 0, 0, scroll.UIListLayout.AbsoluteContentSize.Y + 30)
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- Tạo Nút Tròn Logo Jollibee nổi trên màn hình
 local ToggleGui = Instance.new("ScreenGui")
-ToggleGui.Name = "JollibeeToggleGui"
-ToggleGui.ResetOnSpawn = false
-pcall(function() ToggleGui.Parent = game:GetService("CoreGui") end)
+ToggleGui.Name, ToggleGui.ResetOnSpawn = "JollibeeToggleGui", false
+pcall(function() ToggleGui.Parent = CoreGui end)
 if not ToggleGui.Parent then ToggleGui.Parent = LP:WaitForChild("PlayerGui") end
 
 local ToggleBtn = Instance.new("ImageButton", ToggleGui)
-ToggleBtn.Name = "JollibeeToggleBtn"
-ToggleBtn.Size = UDim2.new(0, 55, 0, 55)
-ToggleBtn.Position = UDim2.new(0, 20, 0.35, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 30)
-ToggleBtn.Image = "rbxassetid://13217983637"
-ToggleBtn.Active = true
-ToggleBtn.Draggable = true
-ToggleBtn.Visible = true
-
+ToggleBtn.Name, ToggleBtn.Size, ToggleBtn.Position, ToggleBtn.BackgroundColor3, ToggleBtn.Image, ToggleBtn.Active, ToggleBtn.Draggable = "JollibeeToggleBtn", UDim2.new(0, 55, 0, 55), UDim2.new(0, 20, 0.35, 0), Color3.fromRGB(220, 20, 30), "rbxassetid://13217983637", true, true
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim2.new(1, 0)
 local stroke = Instance.new("UIStroke", ToggleBtn)
-stroke.Color = Color3.fromRGB(255, 215, 0)
-stroke.Thickness = 2.5
+stroke.Color, stroke.Thickness = Color3.fromRGB(255, 215, 0), 2.5
+ToggleBtn.MouseButton1Click:Connect(function() Window:Minimize() end)
 
--- Bấm vào nút tròn để Thu gọn / Mở lại Menu
-ToggleBtn.MouseButton1Click:Connect(function()
-    Window:Minimize()
-end)
-
-Fluent:Notify({ Title = "Jollibee Hub", Content = "Đã tải giao diện thành công!", Duration = 5 })
-
--- Tạo các Tab Chức Năng
 local Tabs = {
     Farm = Window:AddTab({ Title = "Auto Farm", Icon = "sword" }),
+    Quest = Window:AddTab({ Title = "Farm Khác", Icon = "target" }),
+    Stats = Window:AddTab({ Title = "Auto Stats", Icon = "bar-chart" }),
     Fruit = Window:AddTab({ Title = "Fruit System", Icon = "apple" }),
     ESP = Window:AddTab({ Title = "ESP Player", Icon = "eye" }),
-    Misc = Window:AddTab({ Title = "Misc & Utility", Icon = "settings" }),
-    Admin = Window:AddTab({ Title = "Admin Panel", Icon = "shield" })
+    Misc = Window:AddTab({ Title = "Misc", Icon = "settings" })
 }
 
--- Tab Auto Farm
-Tabs.Farm:AddSection("Farm Cấp Độ & Nhiệm Vụ")
+Tabs.Farm:AddSection("Farm Cấp Độ")
 Tabs.Farm:AddToggle("AutoFarm", {Title = "Auto Farm Level", Default = false}):OnChanged(function(v) AutoFarm = v if not v then StopFly() end end)
 Tabs.Farm:AddToggle("BringMob", {Title = "Gom Quái (Bring Mob)", Default = false}):OnChanged(function(v) BringMob = v end)
 Tabs.Farm:AddToggle("FastAttack", {Title = "Đánh Nhanh (Fast Attack)", Default = false}):OnChanged(function(v) FastAttack = v end)
-Tabs.Farm:AddToggle("FastDistance", {Title = "Đánh Xa (Hitbox Extension)", Default = false}):OnChanged(function(v) FastDistance = v end)
+Tabs.Farm:AddToggle("FastDistance", {Title = "Mở Rộng Hitbox", Default = false}):OnChanged(function(v) FastDistance = v end)
 
--- Tab Fruit System
-Tabs.Fruit:AddSection("Định Vị Trái Ác Quỷ")
-Tabs.Fruit:AddToggle("ESPFruit", {Title = "ESP Trái Ác Quỷ (Tên + Khoảng Cách)", Default = false}):OnChanged(function(v) ESPFruit = v end)
-Tabs.Fruit:AddToggle("ESPFruitGlow", {Title = "ESP Khung Phát Sáng (Fruit Glow)", Default = false}):OnChanged(function(v) ESPFruitGlow = v end)
-Tabs.Fruit:AddSection("Nhặt & Teleport Trái")
-Tabs.Fruit:AddButton({ Title = "🚀 Bay Đến Nhặt Trái Gần Nhất", Callback = TeleportToFruit })
-Tabs.Fruit:AddToggle("AutoStoreFruit", {Title = "Auto Cất Trái Vào Rương (Auto Store)", Default = false}):OnChanged(function(v) AutoStoreFruit = v end)
+Tabs.Quest:AddSection("Farm Nâng Cao")
+Tabs.Quest:AddToggle("AutoBones", {Title = "Auto Farm Xương", Default = false}):OnChanged(function(v) AutoBones = v end)
+Tabs.Quest:AddToggle("AutoKatakuri", {Title = "Auto Katakuri", Default = false}):OnChanged(function(v) AutoKatakuri = v end)
+Tabs.Quest:AddToggle("AutoBoss", {Title = "Auto Farm Boss", Default = false}):OnChanged(function(v) AutoBoss = v end)
 
--- Tab ESP Player
-Tabs.ESP:AddSection("Nhìn Xuyên Tường Người Chơi")
-Tabs.ESP:AddToggle("ESPBox", {Title = "ESP Box (Khung Đỏ)", Default = false}):OnChanged(function(v) ESPBox = v end)
+Tabs.Stats:AddSection("Auto Stats")
+Tabs.Stats:AddToggle("AutoStatsMelee", {Title = "Melee", Default = false}):OnChanged(function(v) AutoStatsMelee = v end)
+Tabs.Stats:AddToggle("AutoStatsDefense", {Title = "Defense", Default = false}):OnChanged(function(v) AutoStatsDefense = v end)
+Tabs.Stats:AddToggle("AutoStatsSword", {Title = "Sword", Default = false}):OnChanged(function(v) AutoStatsSword = v end)
+Tabs.Stats:AddToggle("AutoStatsFruit", {Title = "Demon Fruit", Default = false}):OnChanged(function(v) AutoStatsFruit = v end)
+
+Tabs.Fruit:AddSection("Trái Ác Quỷ")
+Tabs.Fruit:AddToggle("ESPFruit", {Title = "ESP Trái Ác Quỷ", Default = false}):OnChanged(function(v) ESPFruit = v end)
+Tabs.Fruit:AddButton({ Title = "🚀 Bay Đến Nhặt Trái", Callback = TeleportToFruit })
+Tabs.Fruit:AddButton({ Title = "🎰 Random Trái", Callback = function() RS.Remotes.CommF_:InvokeServer("Cousin", "Buy") end })
+
+Tabs.ESP:AddSection("ESP")
+Tabs.ESP:AddToggle("ESPBox", {Title = "ESP Box", Default = false}):OnChanged(function(v) ESPBox = v end)
 Tabs.ESP:AddToggle("ESPName", {Title = "ESP Tên", Default = false}):OnChanged(function(v) ESPName = v end)
-Tabs.ESP:AddToggle("ESPLevel", {Title = "ESP Level", Default = false}):OnChanged(function(v) ESPLevel = v end)
-Tabs.ESP:AddToggle("ESPHealth", {Title = "ESP Máu", Default = false}):OnChanged(function(v) ESPHealth = v end)
 Tabs.ESP:AddToggle("ESPDist", {Title = "ESP Khoảng Cách", Default = false}):OnChanged(function(v) ESPDist = v end)
-Tabs.ESP:AddToggle("ESPLine", {Title = "ESP Đường Kẻ (Tracer Line)", Default = false}):OnChanged(function(v) ESPLine = v end)
+Tabs.ESP:AddToggle("ESPLine", {Title = "ESP Đường Kẻ", Default = false}):OnChanged(function(v) ESPLine = v end)
 
--- Tab Misc
-Tabs.Misc:AddSection("Di Chuyển")
-Tabs.Misc:AddToggle("SpeedHack", {Title = "Hack Tốc Độ (Speed Hack)", Default = false}):OnChanged(function(v) SpeedHack = v end)
-Tabs.Misc:AddSlider("WalkSpeedValue", { Title = "Chỉnh Tốc Độ Chạy", Min = 16, Max = 300, Default = 32, Rounding = 0, Callback = function(v) WalkSpeedValue = v end })
-Tabs.Misc:AddToggle("InfJump", {Title = "Nhảy Vô Hạn (Inf Jump)", Default = false}):OnChanged(function(v) InfJump = v end)
-Tabs.Misc:AddToggle("WalkOnWater", {Title = "Đi Trên Nước (Walk On Water)", Default = false}):OnChanged(function(v) WalkOnWater = v end)
-
-Tabs.Misc:AddSection("Tối Ưu Game")
-Tabs.Misc:AddButton({ Title = "Xóa Sương Mù (Remove Fog)", Callback = function() pcall(function() L.FogEnd, L.FogStart = 9e19, 9e19 for _, v in pairs(L:GetChildren()) do if v:IsA("Atmosphere") or v:IsA("PostEffect") then v:Destroy() end end end) end })
-Tabs.Misc:AddButton({ Title = "Buff FPS Siêu Cấp", Callback = function() pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 L.GlobalShadows = false for _, v in pairs(workspace:GetDescendants()) do if v:IsA("BasePart") then v.Material, v.Reflectance = Enum.Material.SmoothPlastic, 0 elseif v:IsA("Decal") or v:IsA("Texture") then v:Destroy() elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled = false end end end) end })
-
--- Tab Admin
-Tabs.Admin:AddSection("Chức Năng Quyền Năng")
-Tabs.Admin:AddToggle("GodMode", {Title = "Bất Tử (God Mode)", Default = false}):OnChanged(function(v) GodMode = v end)
+Tabs.Misc:AddSection("Tiện Ích")
+Tabs.Misc:AddToggle("SpeedHack", {Title = "Hack Tốc Độ", Default = false}):OnChanged(function(v) SpeedHack = v end)
+Tabs.Misc:AddSlider("WalkSpeedValue", { Title = "Tốc Độ", Min = 16, Max = 300, Default = 32, Rounding = 0, Callback = function(v) WalkSpeedValue = v end })
+Tabs.Misc:AddToggle("InfJump", {Title = "Nhảy Vô Hạn", Default = false}):OnChanged(function(v) InfJump = v end)
+Tabs.Misc:AddToggle("WalkOnWater", {Title = "Đi Trên Nước", Default = false}):OnChanged(function(v) WalkOnWater = v end)
 
 Window:SelectTab(1)
