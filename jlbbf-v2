@@ -26,6 +26,7 @@ local SelectedWeapon, SelectedStat = "Melee", "Melee"
 local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, ESPIsland, ESPLevel, ESPHealth = false, false, false, false, false, false, false, false
 local AutoStats, FlyEnabled, FlySpeed = false, false, 60
 local InfJump, WalkOnWater, SpeedHack, WalkSpeedValue = false, false, false, 32
+local CurrentLang = "VN" -- "VN" or "EN"
 local CurTween, CurPos, WaterPart
 
 local Quests = {
@@ -284,14 +285,10 @@ RSvc.RenderStepped:Connect(function()
     end)
 end)
 
--- ==========================================
--- 🛠️ FIXED ESP PLAYER (CẢI TIẾN LẠI HOÀN TOÀN)
--- ==========================================
+-- ESP Player Logic
 local Lines = {}
 RSvc.RenderStepped:Connect(function()
     local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    
-    -- Reset Lines cũ
     for _, l in pairs(Lines) do pcall(function() l:Remove() end) end
     Lines = {}
 
@@ -302,7 +299,6 @@ RSvc.RenderStepped:Connect(function()
             local pHum = char:FindFirstChildOfClass("Humanoid")
 
             if pHrp and pHum and pHum.Health > 0 then
-                -- Highlight / Box ESP
                 local hl = char:FindFirstChild("JolibeeHL")
                 if ESPBox then
                     if not hl then
@@ -312,31 +308,17 @@ RSvc.RenderStepped:Connect(function()
                         hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                     end
                     hl.Enabled = true
-                elseif hl then
-                    hl.Enabled = false
-                end
+                elseif hl then hl.Enabled = false end
 
-                -- Text Info ESP (BillboardGui)
                 local bg = pHrp:FindFirstChild("PlayerESP")
                 if not bg then
                     bg = Instance.new("BillboardGui", pHrp)
-                    bg.Name = "PlayerESP"
-                    bg.Size = UDim2.new(0, 200, 0, 50)
-                    bg.AlwaysOnTop = true
-                    bg.StudsOffset = Vector3.new(0, 3.5, 0)
-
+                    bg.Name = "PlayerESP"; bg.Size = UDim2.new(0, 200, 0, 50); bg.AlwaysOnTop = true; bg.StudsOffset = Vector3.new(0, 3.5, 0)
                     local txt = Instance.new("TextLabel", bg)
-                    txt.Name = "Txt"
-                    txt.Size = UDim2.new(1, 0, 1, 0)
-                    txt.BackgroundTransparency = 1
-                    txt.TextColor3 = Color3.fromRGB(0, 255, 255)
-                    txt.TextSize = 13
-                    txt.Font = Enum.Font.SourceSansBold
-                    txt.TextStrokeTransparency = 0
+                    txt.Name = "Txt"; txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.TextColor3 = Color3.fromRGB(0, 255, 255); txt.TextSize = 13; txt.Font = Enum.Font.SourceSansBold; txt.TextStrokeTransparency = 0
                 end
 
                 bg.Enabled = (ESPName or ESPDist or ESPLevel or ESPHealth)
-
                 if bg.Enabled then
                     local infoStr = ""
                     if ESPName then infoStr = infoStr .. p.Name end
@@ -346,16 +328,13 @@ RSvc.RenderStepped:Connect(function()
                     bg.Txt.Text = infoStr
                 end
 
-                -- Line ESP
                 if ESPLine and myHrp then
                     local pos, vis = Cam:WorldToViewportPoint(pHrp.Position)
                     if vis then
                         local l = Drawing.new("Line")
                         l.From = Vector2.new(Cam.ViewportSize.X / 2, Cam.ViewportSize.Y)
                         l.To = Vector2.new(pos.X, pos.Y)
-                        l.Color = Color3.fromRGB(0, 255, 255)
-                        l.Thickness = 1.5
-                        l.Visible = true
+                        l.Color = Color3.fromRGB(0, 255, 255); l.Thickness = 1.5; l.Visible = true
                         table.insert(Lines, l)
                     end
                 end
@@ -410,21 +389,21 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 🎨 CUSTOM GUI + NÚT TRÒN MỞ MENU + SPEED CONTROLLER
+-- 🎨 JOLLIBEE HUB UI (CUSTOM WITH SLIDER & LANGUAGE SETTINGS)
 -- ==========================================
 local CoreGui = game:GetService("CoreGui")
-if CoreGui:FindFirstChild("JolibeeCustomUI") then CoreGui.JolibeeCustomUI:Destroy() end
+if CoreGui:FindFirstChild("JollibeeHubUI") then CoreGui.JollibeeHubUI:Destroy() end
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "JolibeeCustomUI"
+ScreenGui.Name = "JollibeeHubUI"
 
--- 🟢 Nút Tròn Mở Menu (Toggle Circle Button)
+-- Nút Tròn Thu Nhỏ / Mở Menu
 local CircleBtn = Instance.new("TextButton", ScreenGui)
 CircleBtn.Name = "OpenCircleBtn"
 CircleBtn.Size = UDim2.new(0, 50, 0, 50)
 CircleBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
 CircleBtn.BackgroundColor3 = Color3.fromRGB(255, 85, 0)
-CircleBtn.Text = "Jolibee"
+CircleBtn.Text = "Jollibee"
 CircleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CircleBtn.Font = Enum.Font.SourceSansBold
 CircleBtn.TextSize = 12
@@ -434,22 +413,19 @@ CircleBtn.Draggable = true
 Instance.new("UICorner", CircleBtn).CornerRadius = UDim.new(1, 0)
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 450, 0, 310)
-MainFrame.Position = UDim2.new(0.5, -225, 0.5, -155)
+MainFrame.Size = UDim2.new(0, 460, 0, 310)
+MainFrame.Position = UDim2.new(0.5, -230, 0.5, -155)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
--- Hàm Bật/Tắt Menu
 local function ToggleMenu(visible)
     MainFrame.Visible = visible
     CircleBtn.Visible = not visible
 end
 
-CircleBtn.MouseButton1Click:Connect(function()
-    ToggleMenu(true)
-end)
+CircleBtn.MouseButton1Click:Connect(function() ToggleMenu(true) end)
 
 -- Header Bar
 local Header = Instance.new("Frame", MainFrame)
@@ -458,11 +434,11 @@ Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
 
 local Title = Instance.new("TextLabel", Header)
-Title.Text = "  Jolibee Mod (Toggle Circle Fixed)"
+Title.Text = "  Jollibee Hub"
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 15
+Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 
@@ -474,11 +450,9 @@ CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
 CloseBtn.Font = Enum.Font.SourceSansBold
 CloseBtn.TextSize = 16
 CloseBtn.BackgroundTransparency = 1
-CloseBtn.MouseButton1Click:Connect(function()
-    ToggleMenu(false)
-end)
+CloseBtn.MouseButton1Click:Connect(function() ToggleMenu(false) end)
 
--- Sidebar Tabs
+-- Sidebar
 local Sidebar = Instance.new("Frame", MainFrame)
 Sidebar.Position = UDim2.new(0, 0, 0, 35)
 Sidebar.Size = UDim2.new(0, 110, 1, -35)
@@ -489,144 +463,272 @@ Container.Position = UDim2.new(0, 115, 0, 40)
 Container.Size = UDim2.new(1, -120, 1, -45)
 Container.BackgroundTransparency = 1
 
-local Tabs = {"Auto Farm", "Fruit System", "ESP Player", "Misc"}
+local TabNames = {
+    VN = {"Auto Farm", "Fruit System", "ESP Player", "Misc", "Cài Đặt"},
+    EN = {"Auto Farm", "Fruit System", "ESP Player", "Misc", "Settings"}
+}
+
+local TabBtns = {}
 local TabFrames = {}
 
 local TabList = Instance.new("UIListLayout", Sidebar)
 TabList.Padding = UDim.new(0, 5)
 
-for i, name in ipairs(Tabs) do
+for i = 1, 5 do
     local TabBtn = Instance.new("TextButton", Sidebar)
     TabBtn.Size = UDim2.new(1, 0, 0, 32)
-    TabBtn.Text = name
+    TabBtn.Text = TabNames[CurrentLang][i]
     TabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
     TabBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     TabBtn.Font = Enum.Font.SourceSansBold
-    TabBtn.TextSize = 13
-    
+    TabBtn.TextSize = 12
+    table.insert(TabBtns, TabBtn)
+
     local Scroll = Instance.new("ScrollingFrame", Container)
     Scroll.Size = UDim2.new(1, 0, 1, 0)
     Scroll.BackgroundTransparency = 1
     Scroll.Visible = (i == 1)
     Scroll.ScrollBarThickness = 3
-    TabFrames[name] = Scroll
-    
+    table.insert(TabFrames, Scroll)
+
     local List = Instance.new("UIListLayout", Scroll)
     List.Padding = UDim.new(0, 6)
-    
+
     TabBtn.MouseButton1Click:Connect(function()
         for _, f in pairs(TabFrames) do f.Visible = false end
         Scroll.Visible = true
     end)
 end
 
--- UI Helper Functions
-local function CreateToggle(parent, text, default, callback)
+-- Bảng Ngôn Ngữ Text (Translations)
+local LangText = {
+    VN = {
+        AutoFarm = "Auto Farm Level",
+        BringMob = "Gom Quái (Bring Mob)",
+        FastAttack = "Đánh Nhanh (Fast Attack)",
+        FastDist = "Đánh Xa (Hitbox Extend)",
+        AutoChest = "Auto Nhặt Rương (Auto Chest)",
+        AutoStats = "Auto Up Stats",
+        GetFruit = "Bay Lượm Fruit (Smooth)",
+        ESPFruit = "ESP Trái Ác Quỷ (Fruit)",
+        ESPIsland = "ESP Đảo (Island ESP)",
+        ESPBox = "ESP Box",
+        ESPName = "ESP Tên",
+        ESPLevel = "ESP Level",
+        ESPHealth = "ESP Máu (Health)",
+        ESPDist = "ESP Khoảng Cách",
+        ESPLine = "ESP Đường Kẻ (Line)",
+        SpeedHack = "Chạy Nhanh (Speed Hack)",
+        WalkSpeedLbl = "Tốc Độ Chạy: ",
+        InfJump = "Nhảy Vô Hạn (Infinite Jump)",
+        WalkWater = "Đi Trên Nước (Water Walk)",
+        NoFog = "Xóa Sương Mù (No Fog)",
+        BuffFPS = "Buff FPS Siêu Cấp",
+        LangTitle = "Chọn Ngôn Ngữ / Language:"
+    },
+    EN = {
+        AutoFarm = "Auto Farm Level",
+        BringMob = "Bring Mobs",
+        FastAttack = "Fast Attack",
+        FastDist = "Hitbox Extension",
+        AutoChest = "Auto Collect Chests",
+        AutoStats = "Auto Upgrade Stats",
+        GetFruit = "Teleport To Fruit",
+        ESPFruit = "Fruit ESP",
+        ESPIsland = "Island ESP",
+        ESPBox = "Box ESP",
+        ESPName = "Name ESP",
+        ESPLevel = "Level ESP",
+        ESPHealth = "Health ESP",
+        ESPDist = "Distance ESP",
+        ESPLine = "Line ESP",
+        SpeedHack = "Speed Hack",
+        WalkSpeedLbl = "Speed Value: ",
+        InfJump = "Infinite Jump",
+        WalkWater = "Walk On Water",
+        NoFog = "Remove Fog",
+        BuffFPS = "Ultra FPS Boost",
+        LangTitle = "Select Language / Ngôn Ngữ:"
+    }
+}
+
+local UI_Elements = {}
+
+-- Helper UI Functions
+local function CreateToggle(parent, langKey, default, callback)
     local btn = Instance.new("TextButton", parent)
     btn.Size = UDim2.new(1, -10, 0, 30)
     btn.BackgroundColor3 = default and Color3.fromRGB(0, 150, 90) or Color3.fromRGB(45, 45, 55)
-    btn.Text = "  " .. text .. " : " .. (default and "ON" or "OFF")
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.SourceSansBold
     btn.TextSize = 13
     btn.TextXAlignment = Enum.TextXAlignment.Left
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    
+
     local state = default
+    local function UpdateText()
+        btn.Text = "  " .. LangText[CurrentLang][langKey] .. " : " .. (state and "ON" or "OFF")
+    end
+    UpdateText()
+
     btn.MouseButton1Click:Connect(function()
         state = not state
         btn.BackgroundColor3 = state and Color3.fromRGB(0, 150, 90) or Color3.fromRGB(45, 45, 55)
-        btn.Text = "  " .. text .. " : " .. (state and "ON" or "OFF")
+        UpdateText()
         callback(state)
     end)
+
+    table.insert(UI_Elements, UpdateText)
 end
 
-local function CreateButton(parent, text, callback)
+local function CreateButton(parent, langKey, callback)
     local btn = Instance.new("TextButton", parent)
     btn.Size = UDim2.new(1, -10, 0, 30)
     btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.SourceSansBold
     btn.TextSize = 13
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    local function UpdateText()
+        btn.Text = LangText[CurrentLang][langKey]
+    end
+    UpdateText()
+
     btn.MouseButton1Click:Connect(callback)
+    table.insert(UI_Elements, UpdateText)
 end
 
--- ⚡ Cụm Chỉnh Tốc Độ Chạy (Speed Controller)
-local function CreateSpeedController(parent)
+-- 🎚️ Thanh Kéo Chỉnh Tốc Độ (Slider Bar)
+local function CreateSlider(parent, min, max, default, callback)
     local frame = Instance.new("Frame", parent)
-    frame.Size = UDim2.new(1, -10, 0, 35)
+    frame.Size = UDim2.new(1, -10, 0, 45)
     frame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
 
     local lbl = Instance.new("TextLabel", frame)
-    lbl.Size = UDim2.new(0.5, 0, 1, 0)
-    lbl.Text = " Tốc Độ: " .. WalkSpeedValue
-    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lbl.Size = UDim2.new(1, 0, 0, 20)
     lbl.Font = Enum.Font.SourceSansBold
-    lbl.TextSize = 13
+    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lbl.TextSize = 12
     lbl.BackgroundTransparency = 1
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
 
-    local subBtn = Instance.new("TextButton", frame)
-    subBtn.Size = UDim2.new(0, 30, 0, 25)
-    subBtn.Position = UDim2.new(0.52, 0, 0.15, 0)
-    subBtn.Text = "-10"
-    subBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
-    subBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    subBtn.Font = Enum.Font.SourceSansBold
-    Instance.new("UICorner", subBtn).CornerRadius = UDim.new(0, 4)
+    local sliderBar = Instance.new("Frame", frame)
+    sliderBar.Size = UDim2.new(0.9, 0, 0, 8)
+    sliderBar.Position = UDim2.new(0.05, 0, 0.6, 0)
+    sliderBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    Instance.new("UICorner", sliderBar).CornerRadius = UDim.new(1, 0)
 
-    local addBtn = Instance.new("TextButton", frame)
-    addBtn.Size = UDim2.new(0, 30, 0, 25)
-    addBtn.Position = UDim2.new(0.68, 0, 0.15, 0)
-    addBtn.Text = "+10"
-    addBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-    addBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    addBtn.Font = Enum.Font.SourceSansBold
-    Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 4)
+    local fill = Instance.new("Frame", sliderBar)
+    fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(255, 85, 0)
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
 
-    subBtn.MouseButton1Click:Connect(function()
-        WalkSpeedValue = math.max(16, WalkSpeedValue - 10)
-        lbl.Text = " Tốc Độ: " .. WalkSpeedValue
+    local val = default
+    local dragging = false
+
+    local function UpdateValue()
+        lbl.Text = LangText[CurrentLang]["WalkSpeedLbl"] .. tostring(val)
+    end
+    UpdateValue()
+    table.insert(UI_Elements, UpdateValue)
+
+    local function Move(input)
+        local pos = math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
+        fill.Size = UDim2.new(pos, 0, 1, 0)
+        val = math.floor(min + (max - min) * pos)
+        UpdateValue()
+        callback(val)
+    end
+
+    sliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            Move(input)
+        end
     end)
 
-    addBtn.MouseButton1Click:Connect(function()
-        WalkSpeedValue = math.min(300, WalkSpeedValue + 10)
-        lbl.Text = " Tốc Độ: " .. WalkSpeedValue
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            Move(input)
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
     end)
 end
 
--- Populate Farm Tab
-local FarmScroll = TabFrames["Auto Farm"]
-CreateToggle(FarmScroll, "Auto Farm Level", false, function(v) AutoFarm = v if not v then StopFly() end end)
-CreateToggle(FarmScroll, "Gom Quái (Bring Mob)", false, function(v) BringMob = v end)
-CreateToggle(FarmScroll, "Đánh Nhanh (Fast Attack)", false, function(v) FastAttack = v end)
-CreateToggle(FarmScroll, "Đánh Xa (Hitbox Extend)", false, function(v) FastDistance = v end)
-CreateToggle(FarmScroll, "Auto Nhặt Rương (Auto Chest)", false, function(v) AutoChest = v if not v then StopFly() end end)
-CreateToggle(FarmScroll, "Auto Up Stats", false, function(v) AutoStats = v end)
+-- Populate Tab 1: Auto Farm
+local FarmScroll = TabFrames[1]
+CreateToggle(FarmScroll, "AutoFarm", false, function(v) AutoFarm = v if not v then StopFly() end end)
+CreateToggle(FarmScroll, "BringMob", false, function(v) BringMob = v end)
+CreateToggle(FarmScroll, "FastAttack", false, function(v) FastAttack = v end)
+CreateToggle(FarmScroll, "FastDist", false, function(v) FastDistance = v end)
+CreateToggle(FarmScroll, "AutoChest", false, function(v) AutoChest = v if not v then StopFly() end end)
+CreateToggle(FarmScroll, "AutoStats", false, function(v) AutoStats = v end)
 
--- Populate Fruit Tab
-local FruitScroll = TabFrames["Fruit System"]
-CreateButton(FruitScroll, "Bay Lượm Fruit (Smooth)", function() TeleportToFruit() end)
-CreateToggle(FruitScroll, "ESP Trái Ác Quỷ (Fruit)", false, function(v) ESPFruit = v end)
-CreateToggle(FruitScroll, "ESP Đảo (Island ESP)", false, function(v) ESPIsland = v end)
+-- Populate Tab 2: Fruit
+local FruitScroll = TabFrames[2]
+CreateButton(FruitScroll, "GetFruit", function() TeleportToFruit() end)
+CreateToggle(FruitScroll, "ESPFruit", false, function(v) ESPFruit = v end)
+CreateToggle(FruitScroll, "ESPIsland", false, function(v) ESPIsland = v end)
 
--- Populate ESP Tab
-local ESPScroll = TabFrames["ESP Player"]
-CreateToggle(ESPScroll, "ESP Box", false, function(v) ESPBox = v end)
-CreateToggle(ESPScroll, "ESP Tên", false, function(v) ESPName = v end)
-CreateToggle(ESPScroll, "ESP Level", false, function(v) ESPLevel = v end)
-CreateToggle(ESPScroll, "ESP Máu (Health)", false, function(v) ESPHealth = v end)
-CreateToggle(ESPScroll, "ESP Khoảng Cách", false, function(v) ESPDist = v end)
-CreateToggle(ESPScroll, "ESP Đường Kẻ (Line)", false, function(v) ESPLine = v end)
+-- Populate Tab 3: ESP Player
+local ESPScroll = TabFrames[3]
+CreateToggle(ESPScroll, "ESPBox", false, function(v) ESPBox = v end)
+CreateToggle(ESPScroll, "ESPName", false, function(v) ESPName = v end)
+CreateToggle(ESPScroll, "ESPLevel", false, function(v) ESPLevel = v end)
+CreateToggle(ESPScroll, "ESPHealth", false, function(v) ESPHealth = v end)
+CreateToggle(ESPScroll, "ESPDist", false, function(v) ESPDist = v end)
+CreateToggle(ESPScroll, "ESPLine", false, function(v) ESPLine = v end)
 
--- Populate Misc Tab
-local MiscScroll = TabFrames["Misc"]
-CreateToggle(MiscScroll, "Chạy Nhanh (Speed Hack)", false, function(v) SpeedHack = v end)
-CreateSpeedController(MiscScroll)
-CreateToggle(MiscScroll, "Nhảy Vô Hạn (Infinite Jump)", false, function(v) InfJump = v end)
-CreateToggle(MiscScroll, "Đi Trên Nước (Water Walk)", false, function(v) WalkOnWater = v end)
-CreateButton(MiscScroll, "Xóa Sương Mù (No Fog)", function() RemoveFog() end)
-CreateButton(MiscScroll, "Buff FPS Siêu Cấp", function() AdvancedBuffFPS() end)
+-- Populate Tab 4: Misc
+local MiscScroll = TabFrames[4]
+CreateToggle(MiscScroll, "SpeedHack", false, function(v) SpeedHack = v end)
+CreateSlider(MiscScroll, 16, 300, 32, function(v) WalkSpeedValue = v end)
+CreateToggle(MiscScroll, "InfJump", false, function(v) InfJump = v end)
+CreateToggle(MiscScroll, "WalkWater", false, function(v) WalkOnWater = v end)
+CreateButton(MiscScroll, "NoFog", function() RemoveFog() end)
+CreateButton(MiscScroll, "BuffFPS", function() AdvancedBuffFPS() end)
+
+-- Populate Tab 5: Settings (Đổi Ngôn Ngữ)
+local SettingsScroll = TabFrames[5]
+local LangLabel = Instance.new("TextLabel", SettingsScroll)
+LangLabel.Size = UDim2.new(1, -10, 0, 25)
+LangLabel.Font = Enum.Font.SourceSansBold
+LangLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+LangLabel.TextSize = 13
+LangLabel.BackgroundTransparency = 1
+
+local function UpdateLangLabel()
+    LangLabel.Text = LangText[CurrentLang]["LangTitle"]
+end
+UpdateLangLabel()
+table.insert(UI_Elements, UpdateLangLabel)
+
+local function RefreshLanguage(lang)
+    CurrentLang = lang
+    for i = 1, 5 do TabBtns[i].Text = TabNames[CurrentLang][i] end
+    for _, fn in pairs(UI_Elements) do fn() end
+end
+
+local VNBtn = Instance.new("TextButton", SettingsScroll)
+VNBtn.Size = UDim2.new(1, -10, 0, 32)
+VNBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+VNBtn.Text = "🇻🇳 Tiếng Việt"
+VNBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+VNBtn.Font = Enum.Font.SourceSansBold
+VNBtn.TextSize = 13
+Instance.new("UICorner", VNBtn).CornerRadius = UDim.new(0, 4)
+VNBtn.MouseButton1Click:Connect(function() RefreshLanguage("VN") end)
+
+local ENBtn = Instance.new("TextButton", SettingsScroll)
+ENBtn.Size = UDim2.new(1, -10, 0, 32)
+ENBtn.BackgroundColor3 = Color3.fromRGB(40, 90, 180)
+ENBtn.Text = "🇺🇸 English"
+ENBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ENBtn.Font = Enum.Font.SourceSansBold
+ENBtn.TextSize = 13
+Instance.new("UICorner", ENBtn).CornerRadius = UDim.new(0, 4)
+ENBtn.MouseButton1Click:Connect(function() RefreshLanguage("EN") end)
