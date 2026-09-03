@@ -15,7 +15,7 @@ pcall(function()
     end
 end)
 
-local P, L, TS, RS, VU, RSvc, UIS, CoreGui = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService"), game:GetService("CoreGui")
+local P, L, TS, RS, VU, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService")
 local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
 
 LP.Idled:Connect(function() VU:Button2Down(Vector2.zero, Cam.CFrame) task.wait(1) VU:Button2Up(Vector2.zero, Cam.CFrame) end)
@@ -236,18 +236,6 @@ end)
 UIS.JumpRequest:Connect(function() if InfJump then local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid") if hum then hum:ChangeState("Jumping") end end end)
 
 local Window = Fluent:CreateWindow({Title = "Jollibee Hub", SubTitle = "ThTuann Edition", TabWidth = 160, Size = UDim2.fromOffset(580, 460), Theme = "Dark", MinimizeKey = Enum.KeyCode.LeftControl})
-
-local ToggleGui = Instance.new("ScreenGui")
-ToggleGui.Name, ToggleGui.ResetOnSpawn = "JollibeeToggleGui", false
-pcall(function() ToggleGui.Parent = CoreGui end)
-if not ToggleGui.Parent then ToggleGui.Parent = LP:WaitForChild("PlayerGui") end
-
-local ToggleBtn = Instance.new("ImageButton", ToggleGui)
-ToggleBtn.Name, ToggleBtn.Size, ToggleBtn.Position, ToggleBtn.BackgroundColor3, ToggleBtn.Image, ToggleBtn.Active, ToggleBtn.Draggable = "JollibeeToggleBtn", UDim2.new(0, 55, 0, 55), UDim2.new(0, 20, 0.35, 0), Color3.fromRGB(220, 20, 30), "rbxassetid://13217983637", true, true
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim2.new(1, 0)
-local stroke = Instance.new("UIStroke", ToggleBtn)
-stroke.Color, stroke.Thickness = Color3.fromRGB(255, 215, 0), 2.5
-ToggleBtn.MouseButton1Click:Connect(function() Window:Minimize() end)
 
 local Tabs = {
     Farm = Window:AddTab({ Title = "Auto Farm", Icon = "sword" }),
