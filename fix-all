@@ -16,7 +16,7 @@ pcall(function()
 end)
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Full Fixed & Speed)", LoadingTitle = "Loading Ultimate Script...", ConfigurationSaving = {Enabled = false}})
+local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Ultimate Ultra Fix)", LoadingTitle = "Loading Upgraded Features...", ConfigurationSaving = {Enabled = false}})
 
 local P, L, TS, RS, VU, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService")
 local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
@@ -66,7 +66,7 @@ local function FlyTo(targetCF)
     local hum = chr and chr:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
     local dist = (hrp.Position - targetCF.Position).Magnitude
-    if dist > 12 then
+    if dist > 8 then
         hum.PlatformStand = true
         for _, v in pairs(chr:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end
         if not CurPos or (CurPos - targetCF.Position).Magnitude > 5 then
@@ -88,7 +88,7 @@ local function StopFly()
     if hum then hum.PlatformStand = false end
 end
 
--- Teleport Fruit
+-- Teleport Fruit (Bay mượt như Farm)
 local function TeleportToFruit()
     local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not myHrp then return end
@@ -107,11 +107,11 @@ local function TeleportToFruit()
 end
 
 -- ==========================================
--- ⚡ AUTO ATTACK FIX (TỰ ĐỘNG ĐÁNH LIÊN TỤC)
+-- ⚡ AUTO ATTACK (KHÔNG CẦN CHẠM MÀN HÌNH)
 -- ==========================================
 task.spawn(function()
     while true do
-        task.wait(FastAttack and 0.05 or 0.2)
+        task.wait(FastAttack and 0.03 or 0.15)
         if AutoFarm then
             pcall(function()
                 local chr = LP.Character
@@ -127,12 +127,14 @@ task.spawn(function()
                             end
                         end
                     else
+                        -- Tự kích hoạt đòn đánh liên tục không phụ thuộc click màn hình
                         tool:Activate()
-                        VU:CaptureController()
-                        VU:ClickButton1(Vector2.new(Cam.ViewportSize.X/2, Cam.ViewportSize.Y/2))
+                        VU:Button1Down(Vector2.zero, Cam.CFrame)
+                        task.wait(0.01)
+                        VU:Button1Up(Vector2.zero, Cam.CFrame)
                         
                         if FastDistance and tool:FindFirstChild("Handle") then
-                            tool.Handle.Size = Vector3.new(35, 35, 35)
+                            tool.Handle.Size = Vector3.new(40, 40, 40)
                             tool.Handle.CanCollide = false
                         end
                     end
@@ -198,10 +200,10 @@ RSvc.Heartbeat:Connect(function()
 end)
 
 -- ==========================================
--- 📦 AUTO CHEST FIX (SỬA LỖI NHẶT RƯƠNG)
+-- 📦 AUTO CHEST (ĐÃ NÂNG CẤP CHUẨN XÁC)
 -- ==========================================
 task.spawn(function()
-    while task.wait(0.15) do
+    while task.wait(0.1) do
         if AutoChest and not AutoFarm then
             pcall(function()
                 local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -220,10 +222,9 @@ task.spawn(function()
                 
                 if chest then
                     FlyTo(chest.CFrame)
-                    if (hrp.Position - chest.Position).Magnitude <= 8 then
+                    if (hrp.Position - chest.Position).Magnitude <= 10 then
                         hrp.CFrame = chest.CFrame
                         firetouchinterest(hrp, chest, 0)
-                        task.wait(0.05)
                         firetouchinterest(hrp, chest, 1)
                     end
                 else 
@@ -242,9 +243,38 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 🏃 MISC FEATURES: SPEED, INF JUMP, WATER WALK
+-- 🏃 MISC: BUFF FPS MAX, NO FOG, SPEED HACK
 -- ==========================================
--- Infinite Jump
+local function AdvancedBuffFPS()
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        L.GlobalShadows = false
+        L.FogEnd = 9e9
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v:Destroy()
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Enabled = false
+            end
+        end
+    end)
+end
+
+local function RemoveFog()
+    pcall(function()
+        L.FogEnd = 9e19
+        L.FogStart = 9e19
+        for _, v in pairs(L:GetChildren()) do
+            if v:IsA("Atmosphere") or v:IsA("PostEffect") then
+                v:Destroy()
+            end
+        end
+    end)
+end
+
 UIS.JumpRequest:Connect(function()
     if InfJump then
         local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
@@ -252,24 +282,21 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
--- Speed Hack (Smooth & Anti-Rubberband)
 RSvc.RenderStepped:Connect(function()
     pcall(function()
         local chr = LP.Character
         local hum = chr and chr:FindFirstChildOfClass("Humanoid")
         local hrp = chr and chr:FindFirstChild("HumanoidRootPart")
         
-        -- WalkSpeed Adjust
         if SpeedHack and hum then
             hum.WalkSpeed = WalkSpeedValue
         end
 
-        -- Walk On Water
         if WalkOnWater and hrp then
             if not WaterPart or not WaterPart.Parent then
                 WaterPart = Instance.new("Part", workspace)
                 WaterPart.Name = "JolibeeWaterPlatform"
-                WaterPart.Size = Vector3.new(200, 1, 200)
+                WaterPart.Size = Vector3.new(300, 1, 300)
                 WaterPart.Anchored = true
                 WaterPart.Transparency = 0.5
                 WaterPart.Color = Color3.fromRGB(0, 170, 255)
@@ -356,12 +383,12 @@ FarmTab:CreateDropdown({Name = "Chọn Vũ Khí Farm", Options = {"Melee", "Swor
 FarmTab:CreateToggle({Name = "Gom 3 Quái Chuẩn AoE", Callback = function(v) BringMob = v end})
 FarmTab:CreateToggle({Name = "Đánh Nhanh (Fast Attack)", Callback = function(v) FastAttack = v end})
 FarmTab:CreateToggle({Name = "Đánh Xa (Hitbox Extend)", Callback = function(v) FastDistance = v end})
-FarmTab:CreateToggle({Name = "Auto Nhặt Rương (Fixed)", Callback = function(v) AutoChest = v if not v then StopFly() end end})
+FarmTab:CreateToggle({Name = "Auto Nhặt Rương (Upgraded)", Callback = function(v) AutoChest = v if not v then StopFly() end end})
 FarmTab:CreateDropdown({Name = "Chọn Stat", Options = {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, Callback = function(v) SelectedStat = type(v) == "table" and v[1] or v end})
 FarmTab:CreateToggle({Name = "Auto Up Stats", Callback = function(v) AutoStats = v end})
 
 local FruitTab = Window:CreateTab("Fruit System")
-FruitTab:CreateButton({Name = "Teleport Đến Trái Ác Quỷ", Callback = function() TeleportToFruit() end})
+FruitTab:CreateButton({Name = "Bay Lượm Fruit (Smooth)", Callback = function() TeleportToFruit() end})
 FruitTab:CreateToggle({Name = "ESP Trái Ác Quỷ (Fruit)", Callback = function(v) ESPFruit = v end})
 
 local ESPTab = Window:CreateTab("ESP Player")
@@ -379,4 +406,5 @@ MiscTab:CreateToggle({Name = "Nhảy Vô Hạn (Infinite Jump)", Callback = func
 MiscTab:CreateToggle({Name = "Đi Trên Nước (Walk On Water)", Callback = function(v) WalkOnWater = v end})
 MiscTab:CreateToggle({Name = "Bay (Fly)", Callback = function(v) FlyEnabled = v end})
 MiscTab:CreateSlider({Name = "Tốc Độ Bay", Range = {20, 250}, Increment = 5, CurrentValue = 60, Callback = function(v) FlySpeed = v end})
-MiscTab:CreateButton({Name = "Buff FPS", Callback = function() settings().Rendering.QualityLevel = 1; L.GlobalShadows = false end})
+MiscTab:CreateButton({Name = "Xóa Sương Mù (No Fog)", Callback = function() RemoveFog() end})
+MiscTab:CreateButton({Name = "Buff FPS Siêu Cấp", Callback = function() AdvancedBuffFPS() end})
