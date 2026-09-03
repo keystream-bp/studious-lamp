@@ -1,0 +1,515 @@
+-- Tải thư viện Fluent UI Library gốc
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- Bypass Anti-Cheat & Chống Ban
+pcall(function()
+    local g = getgenv and getgenv() or _G
+    if g.debug then g.debug.info, g.debug.getupvalue, g.debug.getconstant = function() end, function() end, function() end end
+    local hook = hookmetamethod or detach
+    if hook then
+        local oldIdx, oldNc
+        oldIdx = hook(game, "__index", function(self, k)
+            return (not checkcaller() and (k == "WalkSpeed" or k == "JumpPower")) and 16 or oldIdx(self, k)
+        end)
+        oldNc = hook(game, "__namecall", function(self, ...)
+            local m, n = getnamecallmethod(), tostring(self.Name):lower()
+            if (m == "FireServer" or m == "InvokeServer") and (n:find("ban") or n:find("cheat") or n:find("validator")) then return nil end
+            return oldNc(self, ...)
+        end)
+    end
+end)
+
+-- Khai báo Dịch vụ Roblox
+local P, L, TS, RS, VU, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService")
+local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
+
+-- Chống AFK Kick
+LP.Idled:Connect(function() 
+    VU:Button2Down(Vector2.zero, Cam.CFrame) 
+    task.wait(1) 
+    VU:Button2Up(Vector2.zero, Cam.CFrame) 
+end)
+
+-- Biến lưu trạng thái Chức Năng
+local AutoFarm, AutoChest, BringMob, FastAttack, FastDistance = false, false, false, false, false
+local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, ESPFruitGlow, ESPLevel, ESPHealth = false, false, false, false, false, false, false, false
+local AutoStoreFruit, WalkOnWater, SpeedHack, WalkSpeedValue = false, false, false, 32
+local InfJump, GodMode = false, false
+local CurTween, CurPos, WaterPart
+
+-- Dữ liệu Nhiệm vụ Blox Fruits
+local Quests = {
+    {1, "BanditQuest1", 1, "Bandit", CFrame.new(1059, 16, 1549), CFrame.new(1145, 16, 1630)},
+    {10, "JungleQuest", 1, "Monkey", CFrame.new(-1598, 36, 153), CFrame.new(-1448, 50, 63)},
+    {15, "JungleQuest", 2, "Gorilla", CFrame.new(-1598, 36, 153), CFrame.new(-1237, 6, -486)},
+    {30, "PirateQuest", 1, "Pirate", CFrame.new(-1140, 4, 3828), CFrame.new(-1200, 4, 3900)},
+    {60, "DesertQuest", 1, "Desert Bandit", CFrame.new(894, 6, 4388), CFrame.new(950, 6, 4450)},
+    {90, "SnowQuest", 1, "Snow Bandit", CFrame.new(1385, 87, -1298), CFrame.new(1300, 87, -1350)},
+    {120, "MarineQuest2", 1, "Chief Petty Officer", CFrame.new(-2570, 6, 2060), CFrame.new(-2700, 6, 2100)},
+    {150, "SkyQuest", 1, "Sky Bandit", CFrame.new(-4839, 717, -2619), CFrame.new(-4950, 717, -2900)}
+}
+
+local function GetLvl(p)
+    local target = p or LP
+    local lvl = 1
+    pcall(function() 
+        if target:FindFirstChild("Data") and target.Data:FindFirstChild("Level") then lvl = target.Data.Level.Value
+        elseif target:FindFirstChild("Level") then lvl = target.Level.Value end
+    end)
+    return lvl
+end
+
+local function GetQ()
+    local l, c = GetLvl(), Quests[1]
+    for _, q in ipairs(Quests) do if l >= q[1] then c = q end end
+    return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]}
+end
+
+-- Thuật toán Bay (Tween Fly)
+local function FlyTo(targetCF, speed)
+    speed = speed or 250
+    local chr = LP.Character
+    local hrp = chr and chr:FindFirstChild("HumanoidRootPart")
+    local hum = chr and chr:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+    local dist = (hrp.Position - targetCF.Position).Magnitude
+    if dist > 6 then
+        hum.PlatformStand = true
+        for _, v in pairs(chr:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end
+        if not CurPos or (CurPos - targetCF.Position).Magnitude > 5 then
+            CurPos = targetCF.Position
+            if CurTween then CurTween:Cancel() end
+            CurTween = TS:Create(hrp, TweenInfo.new(dist / speed, Enum.EasingStyle.Linear), {CFrame = targetCF})
+            CurTween:Play()
+        end
+    else
+        if CurTween then CurTween:Cancel(); CurTween = nil end
+        CurPos, hrp.CFrame, hum.PlatformStand = nil, targetCF, false
+    end
+end
+
+local function StopFly()
+    if CurTween then CurTween:Cancel(); CurTween = nil end
+    CurPos = nil
+    local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+    if hum then hum.PlatformStand = false end
+end
+
+-- Bất Tử (God Mode) & Noclip
+RSvc.Stepped:Connect(function()
+    pcall(function()
+        local chr = LP.Character
+        if chr then
+            local hum = chr:FindFirstChildOfClass("Humanoid")
+            if GodMode and hum and hum.Health > 0 then hum.Health = hum.MaxHealth end
+            if AutoFarm then for _, v in pairs(chr:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end end
+        end
+    end)
+end)
+
+-- Vòng lặp Auto Farm & Gom Quái
+RSvc.Heartbeat:Connect(function()
+    if AutoFarm then
+        pcall(function()
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            hrp.Velocity = Vector3.zero
+            local q = GetQ()
+            local qGui = LP.PlayerGui.Main:FindFirstChild("Quest")
+            local hasQ = qGui and qGui.Visible and qGui.Container.QuestTitle.Title.Text ~= ""
+
+            if not hasQ then
+                if (hrp.Position - q.Npc.Position).Magnitude > 12 then FlyTo(q.Npc)
+                else StopFly(); hrp.CFrame = q.Npc; RS.Remotes.CommF_:InvokeServer("StartQuest", q.QName, q.QNum) end
+            else
+                local mobList = {}
+                if workspace:FindFirstChild("Enemies") then
+                    for _, v in pairs(workspace.Enemies:GetChildren()) do
+                        if (v.Name == q.MName or v.Name:find(q.MName)) and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
+                            table.insert(mobList, {Mob = v, Dist = (v.HumanoidRootPart.Position - hrp.Position).Magnitude})
+                        end
+                    end
+                end
+
+                if #mobList == 0 then FlyTo(q.Mob)
+                else
+                    table.sort(mobList, function(a, b) return a.Dist < b.Dist end)
+                    local mainMob = mobList[1].Mob
+                    StopFly()
+                    local mHrp = mainMob.HumanoidRootPart
+                    hrp.CFrame = CFrame.new(mHrp.Position + Vector3.new(0, 10, 0), mHrp.Position)
+
+                    if BringMob then
+                        for i = 1, math.min(3, #mobList) do
+                            local om = mobList[i].Mob
+                            if om:FindFirstChild("HumanoidRootPart") then
+                                om.HumanoidRootPart.CFrame = CFrame.new(mHrp.Position)
+                                om.HumanoidRootPart.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Fast Attack & Tự động Đánh
+task.spawn(function()
+    while true do
+        task.wait(FastAttack and 0.03 or 0.15)
+        if AutoFarm then
+            pcall(function()
+                local chr = LP.Character
+                if chr and chr:FindFirstChild("Humanoid") and chr.Humanoid.Health > 0 then
+                    local tool = chr:FindFirstChildOfClass("Tool")
+                    if not tool then
+                        for _, t in pairs(LP.Backpack:GetChildren()) do
+                            if t:IsA("Tool") then chr.Humanoid:EquipTool(t) break end
+                        end
+                    else
+                        tool:Activate()
+                        VU:Button1Down(Vector2.zero, Cam.CFrame) task.wait(0.01) VU:Button1Up(Vector2.zero, Cam.CFrame)
+                        if FastDistance and tool:FindFirstChild("Handle") then
+                            tool.Handle.Size = Vector3.new(40, 40, 40)
+                            tool.Handle.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ESP TRÁI ÁC QUỶ (FRUIT ESP)
+RSvc.RenderStepped:Connect(function()
+    pcall(function()
+        local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        
+        for _, v in pairs(workspace:GetChildren()) do
+            local isFruit = v:IsA("Tool") or v.Name:find("Fruit") or v.Name:find("Fruit ")
+            if isFruit then
+                local handle = v:FindFirstChild("Handle") or v:FindFirstChildWhichIsA("BasePart")
+                if handle then
+                    local bg = handle:FindFirstChild("FruitESP")
+                    if ESPFruit then
+                        if not bg then
+                            bg = Instance.new("BillboardGui", handle)
+                            bg.Name = "FruitESP"; bg.Size = UDim2.new(0, 220, 0, 50); bg.AlwaysOnTop = true; bg.StudsOffset = Vector3.new(0, 2.5, 0)
+                            local txt = Instance.new("TextLabel", bg)
+                            txt.Name = "Txt"; txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.TextColor3 = Color3.fromRGB(255, 170, 0); txt.TextSize = 14; txt.Font = Enum.Font.SourceSansBold; txt.TextStrokeTransparency = 0
+                        end
+                        
+                        local distStr = ""
+                        if myHrp then
+                            local dist = math.floor((handle.Position - myHrp.Position).Magnitude)
+                            distStr = " [" .. dist .. "m]"
+                        end
+                        bg.Txt.Text = "🍎 " .. v.Name .. distStr
+                        bg.Enabled = true
+                    elseif bg then
+                        bg.Enabled = false
+                    end
+
+                    local hl = handle:FindFirstChild("FruitGlow")
+                    if ESPFruitGlow then
+                        if not hl then
+                            hl = Instance.new("Highlight", handle)
+                            hl.Name = "FruitGlow"
+                            hl.FillColor = Color3.fromRGB(255, 120, 0)
+                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            hl.FillTransparency = 0.4
+                        end
+                        hl.Enabled = true
+                    elseif hl then
+                        hl.Enabled = false
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+-- TELEPORT VÀ AUTO NHẶT & CẤT TRÁI ÁC QUỶ
+local function TeleportToFruit()
+    pcall(function()
+        local fruitsFound = {}
+        for _, v in pairs(workspace:GetChildren()) do
+            if v:IsA("Tool") or v.Name:find("Fruit") or v.Name:find("Fruit ") then
+                local handle = v:FindFirstChild("Handle") or v:FindFirstChildWhichIsA("BasePart")
+                if handle then table.insert(fruitsFound, {Tool = v, Part = handle}) end
+            end
+        end
+
+        if #fruitsFound > 0 then
+            local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if myHrp then
+                table.sort(fruitsFound, function(a, b) return (a.Part.Position - myHrp.Position).Magnitude < (b.Part.Position - myHrp.Position).Magnitude end)
+                local target = fruitsFound[1]
+                
+                Fluent:Notify({
+                    Title = "Jollibee Hub",
+                    Content = "Đang bay tới trái: " .. target.Tool.Name,
+                    Duration = 3
+                })
+                
+                task.spawn(function()
+                    while target.Part and target.Part.Parent and (target.Part.Position - myHrp.Position).Magnitude > 5 do
+                        FlyTo(target.Part.CFrame, 300)
+                        task.wait(0.05)
+                    end
+                    StopFly()
+                    if target.Part and target.Part.Parent then
+                        myHrp.CFrame = target.Part.CFrame
+                        firetouchinterest(myHrp, target.Part, 0) task.wait(0.1) firetouchinterest(myHrp, target.Part, 1)
+                    end
+
+                    if AutoStoreFruit then
+                        task.wait(0.5)
+                        pcall(function()
+                            for _, tool in pairs(LP.Backpack:GetChildren()) do
+                                if tool:IsA("Tool") and (tool.Name:find("Fruit") or tool.Name:find("Fruit ")) then
+                                    RS.Remotes.CommF_:InvokeServer("StoreFruit", tool.Name, tool)
+                                end
+                            end
+                        end)
+                    end
+                end)
+            end
+        else
+            Fluent:Notify({
+                Title = "Jollibee Hub",
+                Content = "Không tìm thấy Trái Ác Quỷ nào trên sàn!",
+                Duration = 3
+            })
+        end
+    end)
+end
+
+-- ESP PLAYER LOGIC
+local Lines = {}
+RSvc.RenderStepped:Connect(function()
+    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    for _, l in pairs(Lines) do pcall(function() l:Remove() end) end
+    Lines = {}
+
+    for _, p in pairs(P:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local char = p.Character
+            local pHrp = char:FindFirstChild("HumanoidRootPart")
+            local pHum = char:FindFirstChildOfClass("Humanoid")
+
+            if pHrp and pHum and pHum.Health > 0 then
+                local hl = char:FindFirstChild("JollibeeHL")
+                if ESPBox then
+                    if not hl then
+                        hl = Instance.new("Highlight", char)
+                        hl.Name = "JollibeeHL"
+                        hl.FillColor = Color3.fromRGB(255, 50, 50)
+                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    end
+                    hl.Enabled = true
+                elseif hl then hl.Enabled = false end
+
+                local bg = pHrp:FindFirstChild("PlayerESP")
+                if not bg then
+                    bg = Instance.new("BillboardGui", pHrp)
+                    bg.Name = "PlayerESP"; bg.Size = UDim2.new(0, 200, 0, 50); bg.AlwaysOnTop = true; bg.StudsOffset = Vector3.new(0, 3.5, 0)
+                    local txt = Instance.new("TextLabel", bg)
+                    txt.Name = "Txt"; txt.Size = UDim2.new(1, 0, 1, 0); txt.BackgroundTransparency = 1; txt.TextColor3 = Color3.fromRGB(0, 255, 255); txt.TextSize = 13; txt.Font = Enum.Font.SourceSansBold; txt.TextStrokeTransparency = 0
+                end
+
+                bg.Enabled = (ESPName or ESPDist or ESPLevel or ESPHealth)
+                if bg.Enabled then
+                    local infoStr = ""
+                    if ESPName then infoStr = infoStr .. p.Name end
+                    if ESPLevel then infoStr = infoStr .. " [Lv. " .. GetLvl(p) .. "]" end
+                    if ESPHealth then infoStr = infoStr .. "\nHP: " .. math.floor(pHum.Health) .. "/" .. math.floor(pHum.MaxHealth) end
+                    if ESPDist and myHrp then infoStr = infoStr .. "\n[" .. math.floor((pHrp.Position - myHrp.Position).Magnitude) .. "m]" end
+                    bg.Txt.Text = infoStr
+                end
+
+                if ESPLine and myHrp then
+                    local pos, vis = Cam:WorldToViewportPoint(pHrp.Position)
+                    if vis then
+                        local l = Drawing.new("Line")
+                        l.From = Vector2.new(Cam.ViewportSize.X / 2, Cam.ViewportSize.Y)
+                        l.To = Vector2.new(pos.X, pos.Y)
+                        l.Color = Color3.fromRGB(0, 255, 255); l.Thickness = 1.5; l.Visible = true
+                        table.insert(Lines, l)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Đi Trên Nước & Speed Hack
+RSvc.RenderStepped:Connect(function()
+    pcall(function()
+        local chr = LP.Character
+        local hum = chr and chr:FindFirstChildOfClass("Humanoid")
+        local hrp = chr and chr:FindFirstChild("HumanoidRootPart")
+        if SpeedHack and hum then hum.WalkSpeed = WalkSpeedValue end
+        if WalkOnWater and hrp then
+            if not WaterPart or not WaterPart.Parent then
+                WaterPart = Instance.new("Part", workspace)
+                WaterPart.Name = "JollibeeWaterPlatform"
+                WaterPart.Size = Vector3.new(300, 1, 300)
+                WaterPart.Anchored = true
+                WaterPart.Transparency = 0.5
+                WaterPart.Color = Color3.fromRGB(0, 170, 255)
+            end
+            WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z)
+        elseif WaterPart then WaterPart:Destroy(); WaterPart = nil end
+    end)
+end)
+
+UIS.JumpRequest:Connect(function()
+    if InfJump then
+        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState("Jumping") end
+    end
+end)
+
+----------------------------------------------------
+-- THIẾT LẬP GIAO DIỆN FLUENT UI LIBRARY
+----------------------------------------------------
+local Window = Fluent:CreateWindow({
+    Title = "Jollibee Hub | Blox Fruits V3",
+    SubTitle = "by Jollibee Team",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+-- TIN CHÀO MỪNG CHUẨN FLUENT NOTIFY
+Fluent:Notify({
+    Title = "Jollibee Hub | Official Interface",
+    Content = "Chào mừng bạn đã đến với Jollibee Hub! Chúc bạn có trải nghiệm chơi game vui vẻ.",
+    Duration = 6.5
+})
+
+-- TẠO CÁC TABS GIAO DIỆN FLUENT
+local Tabs = {
+    Farm = Window:AddTab({ Title = "Auto Farm", Icon = "sword" }),
+    Fruit = Window:AddTab({ Title = "Fruit System", Icon = "apple" }),
+    ESP = Window:AddTab({ Title = "ESP Player", Icon = "eye" }),
+    Misc = Window:AddTab({ Title = "Misc & Utility", Icon = "settings" }),
+    Admin = Window:AddTab({ Title = "Admin Panel", Icon = "shield" })
+}
+
+-- TAB 1: AUTO FARM
+Tabs.Farm:AddSection("Farm Cấp Độ & Nhiệm Vụ")
+
+local FarmToggle = Tabs.Farm:AddToggle("AutoFarm", {Title = "Auto Farm Level", Default = false })
+FarmToggle:OnChanged(function(Value) AutoFarm = Value if not Value then StopFly() end end)
+
+local BringToggle = Tabs.Farm:AddToggle("BringMob", {Title = "Gom Quái (Bring Mob)", Default = false })
+BringToggle:OnChanged(function(Value) BringMob = Value end)
+
+local FastAttackToggle = Tabs.Farm:AddToggle("FastAttack", {Title = "Đánh Nhanh (Fast Attack)", Default = false })
+FastAttackToggle:OnChanged(function(Value) FastAttack = Value end)
+
+local HitboxToggle = Tabs.Farm:AddToggle("FastDistance", {Title = "Đánh Xa (Hitbox Extension)", Default = false })
+HitboxToggle:OnChanged(function(Value) FastDistance = Value end)
+
+-- TAB 2: FRUIT SYSTEM
+Tabs.Fruit:AddSection("Định Vị Trái Ác Quỷ")
+
+local ESPFruitToggle = Tabs.Fruit:AddToggle("ESPFruit", {Title = "ESP Trái Ác Quỷ (Tên + Khoảng Cách)", Default = false })
+ESPFruitToggle:OnChanged(function(Value) ESPFruit = Value end)
+
+local ESPGlowToggle = Tabs.Fruit:AddToggle("ESPFruitGlow", {Title = "ESP Khung Phát Sáng (Fruit Glow)", Default = false })
+ESPGlowToggle:OnChanged(function(Value) ESPFruitGlow = Value end)
+
+Tabs.Fruit:AddSection("Nhặt & Teleport Trái")
+
+Tabs.Fruit:AddButton({
+    Title = "🚀 Bay Đến Nhặt Trái Gần Nhất",
+    Callback = function() TeleportToFruit() end
+})
+
+local StoreToggle = Tabs.Fruit:AddToggle("AutoStoreFruit", {Title = "Auto Cất Trái Vào Rương (Auto Store)", Default = false })
+StoreToggle:OnChanged(function(Value) AutoStoreFruit = Value end)
+
+-- TAB 3: ESP PLAYER
+Tabs.ESP:AddSection("Nhìn Xuyên Tường Người Chơi")
+
+local BoxToggle = Tabs.ESP:AddToggle("ESPBox", {Title = "ESP Box (Khung Đỏ)", Default = false })
+BoxToggle:OnChanged(function(Value) ESPBox = Value end)
+
+local NameToggle = Tabs.ESP:AddToggle("ESPName", {Title = "ESP Tên", Default = false })
+NameToggle:OnChanged(function(Value) ESPName = Value end)
+
+local LevelToggle = Tabs.ESP:AddToggle("ESPLevel", {Title = "ESP Level", Default = false })
+LevelToggle:OnChanged(function(Value) ESPLevel = Value end)
+
+local HealthToggle = Tabs.ESP:AddToggle("ESPHealth", {Title = "ESP Máu", Default = false })
+HealthToggle:OnChanged(function(Value) ESPHealth = Value end)
+
+local DistToggle = Tabs.ESP:AddToggle("ESPDist", {Title = "ESP Khoảng Cách", Default = false })
+DistToggle:OnChanged(function(Value) ESPDist = Value end)
+
+local LineToggle = Tabs.ESP:AddToggle("ESPLine", {Title = "ESP Đường Kẻ (Tracer Line)", Default = false })
+LineToggle:OnChanged(function(Value) ESPLine = Value end)
+
+-- TAB 4: MISC & UTILITY
+Tabs.Misc:AddSection("Di Chuyển")
+
+local SpeedToggle = Tabs.Misc:AddToggle("SpeedHack", {Title = "Hack Tốc Độ (Speed Hack)", Default = false })
+SpeedToggle:OnChanged(function(Value) SpeedHack = Value end)
+
+local SpeedSlider = Tabs.Misc:AddSlider("WalkSpeedValue", {
+    Title = "Chỉnh Tốc Độ Chạy",
+    Min = 16,
+    Max = 300,
+    Default = 32,
+    Rounding = 0,
+    Callback = function(Value) WalkSpeedValue = Value end
+})
+
+local JumpToggle = Tabs.Misc:AddToggle("InfJump", {Title = "Nhảy Vô Hạn (Inf Jump)", Default = false })
+JumpToggle:OnChanged(function(Value) InfJump = Value end)
+
+local WaterToggle = Tabs.Misc:AddToggle("WalkOnWater", {Title = "Đi Trên Nước (Walk On Water)", Default = false })
+WaterToggle:OnChanged(function(Value) WalkOnWater = Value end)
+
+Tabs.Misc:AddSection("Tối Ưu Game")
+
+Tabs.Misc:AddButton({
+    Title = "Xóa Sương Mù (Remove Fog)",
+    Callback = function()
+        pcall(function()
+            L.FogEnd, L.FogStart = 9e19, 9e19
+            for _, v in pairs(L:GetChildren()) do if v:IsA("Atmosphere") or v:IsA("PostEffect") then v:Destroy() end end
+        end)
+    end
+})
+
+Tabs.Misc:AddButton({
+    Title = "Buff FPS Siêu Cấp",
+    Callback = function()
+        pcall(function()
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            L.GlobalShadows = false
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("BasePart") then v.Material, v.Reflectance = Enum.Material.SmoothPlastic, 0
+                elseif v:IsA("Decal") or v:IsA("Texture") then v:Destroy()
+                elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled = false end
+            end
+        end)
+    end
+})
+
+-- TAB 5: ADMIN
+Tabs.Admin:AddSection("Chức Năng Quyền Năng")
+
+local GodToggle = Tabs.Admin:AddToggle("GodMode", {Title = "Bất Tử (God Mode)", Default = false })
+GodToggle:OnChanged(function(Value) GodMode = Value end)
+
+-- Mặc định chọn Tab Auto Farm khi mở
+Window:SelectTab(1)
