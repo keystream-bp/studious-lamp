@@ -20,13 +20,6 @@ pcall(function()
     end
 end)
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local Window = Rayfield:CreateWindow({
-    Name = "Jolibee Mod (Bypass & Anti-Ban)",
-    LoadingTitle = "Đang nạp Jollibee Mod UI...",
-    ConfigurationSaving = {Enabled = false}
-})
-
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
@@ -34,55 +27,334 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
 local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 ---------------------------------------------------------
--- TẠO NÚT TRÒN LOGO JOLLIBEE BẬT/TẮT MENU
+-- TẠO CƠ SỞ GIAO DIỆN CỦA MÌNH (NO RAYFIELD)
 ---------------------------------------------------------
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "JollibeeToggleGui"
-ScreenGui.ResetOnSpawn = false
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "JollibeeCustomMenu"
+MainGui.ResetOnSpawn = false
 
-pcall(function()
-    ScreenGui.Parent = CoreGui
+pcall(function() MainGui.Parent = CoreGui end)
+if not MainGui.Parent then MainGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+-- Nút nổi Jollibee
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "JollibeeBtn"
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleBtn.Position = UDim2.new(0.08, 0, 0.15, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+ToggleBtn.Text = "J"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 28
+ToggleBtn.Font = Enum.Font.FredokaOne
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+ToggleBtn.Parent = MainGui
+
+local BtnCorner = Instance.new("UICorner", ToggleBtn)
+BtnCorner.CornerRadius = UDim.new(1, 0)
+
+local BtnStroke = Instance.new("UIStroke", ToggleBtn)
+BtnStroke.Thickness = 3
+BtnStroke.Color = Color3.fromRGB(255, 215, 0)
+
+-- Main Frame (Menu chính)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 520, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Visible = true
+MainFrame.Parent = MainGui
+
+local MainCorner = Instance.new("UICorner", MainFrame)
+MainCorner.CornerRadius = UDim.new(0, 10)
+
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Thickness = 1
+MainStroke.Color = Color3.fromRGB(45, 45, 55)
+
+-- Header Bar
+local Header = Instance.new("Frame", MainFrame)
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+Header.BorderSizePixel = 0
+
+local HeaderCorner = Instance.new("UICorner", Header)
+HeaderCorner.CornerRadius = UDim.new(0, 10)
+
+local TitleLabel = Instance.new("TextLabel", Header)
+TitleLabel.Text = "  Jollibee Mod UI (Rayfield Style)"
+TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+TitleLabel.TextSize = 16
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local CloseBtn = Instance.new("TextButton", Header)
+CloseBtn.Text = "X"
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0.5, -15)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.TextSize = 14
+local CloseCorner = Instance.new("UICorner", CloseBtn)
+CloseCorner.CornerRadius = UDim.new(0, 6)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
 end)
-if not ScreenGui.Parent then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- Sidebar Tabs Container
+local TabHolder = Instance.new("ScrollingFrame", MainFrame)
+TabHolder.Name = "TabHolder"
+TabHolder.Size = UDim2.new(0, 130, 1, -50)
+TabHolder.Position = UDim2.new(0, 10, 0, 45)
+TabHolder.BackgroundTransparency = 1
+TabHolder.ScrollBarThickness = 2
+
+local TabListLayout = Instance.new("UIListLayout", TabHolder)
+TabListLayout.Padding = UDim.new(0, 5)
+
+-- Content Container
+local ContentHolder = Instance.new("Frame", MainFrame)
+ContentHolder.Name = "ContentHolder"
+ContentHolder.Size = UDim2.new(1, -155, 1, -50)
+ContentHolder.Position = UDim2.new(0, 145, 0, 45)
+ContentHolder.BackgroundTransparency = 1
+
+---------------------------------------------------------
+-- UI BUILDER FUNCTIONS (CƠ CHẾ MÔ PHỎNG RAYFIELD)
+---------------------------------------------------------
+local Tabs = {}
+local FirstTab = true
+
+local function CreateTab(tabName)
+    local TabBtn = Instance.new("TextButton", TabHolder)
+    TabBtn.Size = UDim2.new(1, -5, 0, 32)
+    TabBtn.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+    TabBtn.Text = tabName
+    TabBtn.TextColor3 = Color3.fromRGB(180, 180, 190)
+    TabBtn.Font = Enum.Font.SourceSansBold
+    TabBtn.TextSize = 14
+    
+    local TabCorner = Instance.new("UICorner", TabBtn)
+    TabCorner.CornerRadius = UDim.new(0, 6)
+
+    local TabContent = Instance.new("ScrollingFrame", ContentHolder)
+    TabContent.Size = UDim2.new(1, 0, 1, 0)
+    TabContent.BackgroundTransparency = 1
+    TabContent.ScrollBarThickness = 3
+    TabContent.Visible = false
+
+    local ContentLayout = Instance.new("UIListLayout", TabContent)
+    ContentLayout.Padding = UDim.new(0, 6)
+
+    if FirstTab then
+        FirstTab = false
+        TabContent.Visible = true
+        TabBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+        TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+
+    TabBtn.MouseButton1Click:Connect(function()
+        for _, t in pairs(Tabs) do
+            t.Content.Visible = false
+            t.Btn.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+            t.Btn.TextColor3 = Color3.fromRGB(180, 180, 190)
+        end
+        TabContent.Visible = true
+        TabBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+        TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+
+    table.insert(Tabs, {Btn = TabBtn, Content = TabContent})
+
+    local Elements = {}
+
+    function Elements:CreateToggle(data)
+        local frame = Instance.new("Frame", TabContent)
+        frame.Size = UDim2.new(1, -10, 0, 35)
+        frame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+
+        local label = Instance.new("TextLabel", frame)
+        label.Text = "  " .. data.Name
+        label.Size = UDim2.new(0.7, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.fromRGB(220, 220, 220)
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 14
+        label.TextXAlignment = Enum.TextXAlignment.Left
+
+        local btn = Instance.new("TextButton", frame)
+        btn.Size = UDim2.new(0, 45, 0, 22)
+        btn.Position = UDim2.new(1, -50, 0.5, -11)
+        btn.BackgroundColor3 = data.CurrentValue and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(60, 60, 70)
+        btn.Text = data.CurrentValue and "ON" or "OFF"
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.SourceSansBold
+        btn.TextSize = 12
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+        local state = data.CurrentValue or false
+        btn.MouseButton1Click:Connect(function()
+            state = not state
+            btn.BackgroundColor3 = state and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(60, 60, 70)
+            btn.Text = state and "ON" or "OFF"
+            data.Callback(state)
+        end)
+    end
+
+    function Elements:CreateButton(data)
+        local btn = Instance.new("TextButton", TabContent)
+        btn.Size = UDim2.new(1, -10, 0, 35)
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
+        btn.Text = data.Name
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.SourceSansBold
+        btn.TextSize = 14
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+        btn.MouseButton1Click:Connect(function()
+            data.Callback()
+        end)
+    end
+
+    function Elements:CreateSlider(data)
+        local frame = Instance.new("Frame", TabContent)
+        frame.Size = UDim2.new(1, -10, 0, 45)
+        frame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+
+        local label = Instance.new("TextLabel", frame)
+        label.Text = "  " .. data.Name .. ": " .. tostring(data.CurrentValue)
+        label.Size = UDim2.new(1, 0, 0, 20)
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.fromRGB(220, 220, 220)
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 14
+        label.TextXAlignment = Enum.TextXAlignment.Left
+
+        local sliderBar = Instance.new("Frame", frame)
+        sliderBar.Size = UDim2.new(1, -20, 0, 8)
+        sliderBar.Position = UDim2.new(0, 10, 0, 26)
+        sliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        Instance.new("UICorner", sliderBar)
+
+        local sliderFill = Instance.new("Frame", sliderBar)
+        local percent = (data.CurrentValue - data.Range[1]) / (data.Range[2] - data.Range[1])
+        sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+        sliderFill.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+        Instance.new("UICorner", sliderFill)
+
+        local dragging = false
+        local function UpdateSlider(input)
+            local pos = math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
+            local val = math.floor(data.Range[1] + (data.Range[2] - data.Range[1]) * pos)
+            sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+            label.Text = "  " .. data.Name .. ": " .. tostring(val)
+            data.Callback(val)
+        end
+
+        sliderBar.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                UpdateSlider(input)
+            end
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                UpdateSlider(input)
+            end
+        end)
+    end
+
+    function Elements:CreateDropdown(data)
+        local frame = Instance.new("Frame", TabContent)
+        frame.Size = UDim2.new(1, -10, 0, 35)
+        frame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+
+        local label = Instance.new("TextLabel", frame)
+        label.Text = "  " .. data.Name
+        label.Size = UDim2.new(0.5, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.fromRGB(220, 220, 220)
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 14
+        label.TextXAlignment = Enum.TextXAlignment.Left
+
+        local btn = Instance.new("TextButton", frame)
+        btn.Size = UDim2.new(0.45, 0, 0.7, 0)
+        btn.Position = UDim2.new(0.52, 0, 0.15, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+        btn.Text = data.Options[1] or "Select"
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.SourceSansBold
+        btn.TextSize = 12
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+        local currentIndex = 1
+        btn.MouseButton1Click:Connect(function()
+            currentIndex = currentIndex + 1
+            if currentIndex > #data.Options then currentIndex = 1 end
+            local selected = data.Options[currentIndex]
+            btn.Text = selected
+            data.Callback(selected)
+        end)
+    end
+
+    function Elements:CreateParagraph(data)
+        local frame = Instance.new("Frame", TabContent)
+        frame.Size = UDim2.new(1, -10, 0, 45)
+        frame.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+
+        local title = Instance.new("TextLabel", frame)
+        title.Text = "  " .. data.Title
+        title.Size = UDim2.new(1, 0, 0, 20)
+        title.BackgroundTransparency = 1
+        title.TextColor3 = Color3.fromRGB(255, 215, 0)
+        title.Font = Enum.Font.SourceSansBold
+        title.TextSize = 14
+        title.TextXAlignment = Enum.TextXAlignment.Left
+
+        local content = Instance.new("TextLabel", frame)
+        content.Text = "  " .. data.Content
+        content.Size = UDim2.new(1, 0, 0, 20)
+        content.Position = UDim2.new(0, 0, 0, 20)
+        content.BackgroundTransparency = 1
+        content.TextColor3 = Color3.fromRGB(180, 180, 180)
+        content.Font = Enum.Font.SourceSans
+        content.TextSize = 12
+        content.TextXAlignment = Enum.TextXAlignment.Left
+    end
+
+    return Elements
 end
 
-local ToggleButton = Instance.new("ImageButton")
-ToggleButton.Name = "JollibeeButton"
-ToggleButton.Size = UDim2.new(0, 55, 0, 55)
-ToggleButton.Position = UDim2.new(0.1, 0, 0.15, 0)
-ToggleButton.Image = "rbxassetid://10600100779" -- Logo Jollibee
-ToggleButton.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
-ToggleButton.BorderColor3 = Color3.fromRGB(255, 215, 0)
-ToggleButton.BorderSizePixel = 2
-ToggleButton.Active = true
-ToggleButton.Draggable = true
-ToggleButton.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(1, 0) -- Làm tròn hoàn toàn
-UICorner.Parent = ToggleButton
-
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Thickness = 2.5
-UIStroke.Color = Color3.fromRGB(255, 215, 0)
-UIStroke.Parent = ToggleButton
-
--- Bật/Tắt Menu Rayfield khi nhấn nút
-ToggleButton.MouseButton1Click:Connect(function()
-    if game:GetService("VirtualInputManager") then
-        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.K, false, game)
-        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.K, false, game)
-    end
-end)
-
 ---------------------------------------------------------
--- ANTI-AFK & BIẾN HỆ THỐNG
+-- ANTI-AFK & LOGIC GAME
 ---------------------------------------------------------
 LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
@@ -143,8 +415,6 @@ end
 ---------------------------------------------------------
 -- FAST ATTACK & AUTO FARM ENGINE
 ---------------------------------------------------------
-
--- Auto Equip Tool
 task.spawn(function()
     while task.wait(0.2) do
         if AutoFarmLevel or FastAttack then
@@ -163,7 +433,6 @@ task.spawn(function()
     end
 end)
 
--- Fast Hit Engine (RegisterHit)
 local NetEvent = ReplicatedStorage:FindFirstChild("RigControllerEvent") or ReplicatedStorage.Remotes:FindFirstChild("Validator") or ReplicatedStorage.Remotes:FindFirstChild("CommE")
 
 task.spawn(function()
@@ -201,7 +470,6 @@ task.spawn(function()
     end
 end)
 
--- Auto Farm Level & Bring Mob
 task.spawn(function()
     while task.wait(0.1) do
         if AutoFarmLevel then
@@ -237,7 +505,6 @@ task.spawn(function()
                         SmoothFlyTo(CFrame.new(quest.MobPos + Vector3.new(0, 12, 0)))
                     else
                         local mobHrp = mainMob.HumanoidRootPart
-                        
                         hrp.CFrame = mobHrp.CFrame * CFrame.new(0, 9, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         hrp.Velocity = Vector3.zero
 
@@ -259,262 +526,31 @@ task.spawn(function()
     end
 end)
 
--- Auto Up Stats
-task.spawn(function()
-    while task.wait(0.5) do
-        if AutoStats then
-            pcall(function()
-                ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint", SelectedStat, 1)
-            end)
-        end
-    end
-end)
-
 ---------------------------------------------------------
--- WORLD ESP (RƯƠNG & TRÁI ÁC QUỶ)
+-- KHỞI TẠO TABS VÀ CÁC NÚT BẤM MENU
 ---------------------------------------------------------
-local function GetTargetPart(obj)
-    if obj:IsA("BasePart") then return obj end
-    if obj:IsA("Model") then return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart") end
-    if obj:IsA("Tool") then return obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart") end
-    return nil
-end
+local FarmTab = CreateTab("Auto Farm")
+FarmTab:CreateToggle({Name = "Auto Farm Level", CurrentValue = false, Callback = function(v) AutoFarmLevel = v end})
+FarmTab:CreateToggle({Name = "Gom Quái (Bring Mob)", CurrentValue = false, Callback = function(v) BringMob = v end})
+FarmTab:CreateToggle({Name = "Đánh Siêu Nhanh", CurrentValue = false, Callback = function(v) FastAttack = v end})
+FarmTab:CreateToggle({Name = "Anti-Ban Miss Đòn", CurrentValue = true, Callback = function(v) AntiBanMiss = v end})
+FarmTab:CreateDropdown({Name = "Chọn Stat", Options = {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, Callback = function(v) SelectedStat = v end})
+FarmTab:CreateToggle({Name = "Auto Cộng Stats", CurrentValue = false, Callback = function(v) AutoStats = v end})
 
-local function CreateWorldESP(obj, defaultName, color)
-    local part = GetTargetPart(obj)
-    if not part then return end
+local ESPTab = CreateTab("ESP Player")
+ESPTab:CreateToggle({Name = "ESP Box", CurrentValue = false, Callback = function(v) ESPBox = v end})
+ESPTab:CreateToggle({Name = "ESP Name", CurrentValue = false, Callback = function(v) ESPName = v end})
+ESPTab:CreateToggle({Name = "ESP Distance", CurrentValue = false, Callback = function(v) ESPDistance = v end})
 
-    local gui = part:FindFirstChild("JolibeeWorldESP")
-    if not gui then
-        gui = Instance.new("BillboardGui")
-        gui.Name = "JolibeeWorldESP"
-        gui.Size = UDim2.new(0, 200, 0, 40)
-        gui.AlwaysOnTop = true
+local WorldTab = CreateTab("World ESP")
+WorldTab:CreateToggle({Name = "ESP Trái Ác Quỷ", CurrentValue = false, Callback = function(v) ESPFruit = v end})
+WorldTab:CreateToggle({Name = "ESP Rương", CurrentValue = false, Callback = function(v) ESPChest = v end})
 
-        local txt = Instance.new("TextLabel", gui)
-        txt.Name = "Label"
-        txt.Size = UDim2.new(1, 0, 1, 0)
-        txt.BackgroundTransparency = 1
-        txt.TextColor3 = color
-        txt.TextStrokeTransparency = 0
-        txt.TextSize = 13
-        txt.Font = Enum.Font.SourceSansBold
-        txt.Text = defaultName
-        gui.Parent = part
-    end
-
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if hrp and gui:FindFirstChild("Label") then
-        local dist = math.floor((part.Position - hrp.Position).Magnitude)
-        gui.Label.Text = defaultName .. "\n[" .. dist .. "m]"
-    end
-end
-
-local function RemoveWorldESP(obj)
-    local part = GetTargetPart(obj)
-    if part and part:FindFirstChild("JolibeeWorldESP") then
-        part.JolibeeWorldESP:Destroy()
-    end
-end
-
-task.spawn(function()
-    while task.wait(0.4) do
-        for _, obj in pairs(workspace:GetDescendants()) do
-            local nameLower = string.lower(obj.Name)
-
-            local isChest = obj:IsA("Model") and (string.find(nameLower, "chest") or string.find(nameLower, "rương"))
-            if ESPChest and isChest then
-                CreateWorldESP(obj, "📦 " .. obj.Name, Color3.fromRGB(255, 215, 0))
-            elseif not ESPChest and isChest then
-                RemoveWorldESP(obj)
-            end
-
-            local isFruit = (obj:IsA("Tool") or obj:IsA("Model")) and (string.find(nameLower, "fruit") or string.find(nameLower, "trái"))
-            local isDropped = isFruit and not obj:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid")
-            if ESPFruit and isDropped then
-                CreateWorldESP(obj, "🍎 " .. obj.Name, Color3.fromRGB(255, 105, 180))
-            elseif not ESPFruit and isFruit then
-                RemoveWorldESP(obj)
-            end
-        end
-    end
-end)
-
----------------------------------------------------------
--- ESP PLAYER SYSTEM
----------------------------------------------------------
-local Lines = {}
-local function ClearLines()
-    for _, l in pairs(Lines) do if l then l:Remove() end end
-    Lines = {}
-end
-
-local function ApplyPlayerESP(plr)
-    if plr == LocalPlayer then return end
-    local function SetupChr(chr)
-        if not chr then return end
-        local hrp = chr:WaitForChild("HumanoidRootPart", 5)
-        if not hrp then return end
-
-        local hl = chr:FindFirstChild("JolibeeHighlight") or Instance.new("Highlight")
-        hl.Name = "JolibeeHighlight"
-        hl.Adornee = chr
-        hl.FillTransparency = 0.5
-        hl.FillColor = Color3.fromRGB(255, 0, 0)
-        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-        hl.Enabled = ESPBox
-        hl.Parent = chr
-
-        local bg = hrp:FindFirstChild("JolibeePlayerName") or Instance.new("BillboardGui")
-        bg.Name = "JolibeePlayerName"
-        bg.Adornee = hrp
-        bg.Size = UDim2.new(0, 150, 0, 40)
-        bg.StudsOffset = Vector3.new(0, 3, 0)
-        bg.AlwaysOnTop = true
-        bg.Enabled = ESPName or ESPDistance
-
-        local txt = bg:FindFirstChild("Txt") or Instance.new("TextLabel", bg)
-        txt.Name = "Txt"
-        txt.Size = UDim2.new(1, 0, 1, 0)
-        txt.BackgroundTransparency = 1
-        txt.TextColor3 = Color3.fromRGB(0, 255, 255)
-        txt.TextStrokeTransparency = 0
-        txt.TextSize = 13
-        txt.Font = Enum.Font.SourceSansBold
-        txt.Parent = bg
-        bg.Parent = hrp
-
-        local boneHl = chr:FindFirstChild("JolibeeBone") or Instance.new("Highlight")
-        boneHl.Name = "JolibeeBone"
-        boneHl.Adornee = chr
-        boneHl.FillTransparency = 1
-        boneHl.OutlineColor = Color3.fromRGB(0, 255, 0)
-        boneHl.Enabled = ESPBone
-        boneHl.Parent = chr
-    end
-
-    if plr.Character then SetupChr(plr.Character) end
-    plr.CharacterAdded:Connect(SetupChr)
-end
-
-for _, plr in pairs(Players:GetPlayers()) do ApplyPlayerESP(plr) end
-Players.PlayerAdded:Connect(ApplyPlayerESP)
-
----------------------------------------------------------
--- RENDER LOOP
----------------------------------------------------------
-RunService.RenderStepped:Connect(function()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-
-    if FlyEnabled and hrp and hum then
-        hum.PlatformStand = true
-        local moveDir = hum.MoveDirection
-        if moveDir.Magnitude > 0 then
-            hrp.Velocity = (Camera.CFrame.LookVector * -moveDir.Z + Camera.CFrame.RightVector * moveDir.X).Unit * FlySpeed
-        else
-            hrp.Velocity = Vector3.zero
-        end
-    elseif hum and not FlyEnabled and not AutoFarmLevel then
-        hum.PlatformStand = false
-    end
-
-    ClearLines()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            local targetHrp = plr.Character:FindFirstChild("HumanoidRootPart")
-            local hl = plr.Character:FindFirstChild("JolibeeHighlight")
-            if hl then hl.Enabled = ESPBox end
-
-            local boneHl = plr.Character:FindFirstChild("JolibeeBone")
-            if boneHl then boneHl.Enabled = ESPBone end
-
-            if targetHrp then
-                local bg = targetHrp:FindFirstChild("JolibeePlayerName")
-                if bg then
-                    bg.Enabled = ESPName or ESPDistance
-                    local txt = bg:FindFirstChild("Txt")
-                    if txt then
-                        local str = ""
-                        if ESPName then str = str .. plr.Name end
-                        if ESPDistance and hrp then
-                            local d = math.floor((targetHrp.Position - hrp.Position).Magnitude)
-                            str = str .. (ESPName and "\n" or "") .. "[" .. d .. "m]"
-                        end
-                        txt.Text = str
-                    end
-                end
-
-                if ESPLine and hrp then
-                    local pos, onScreen = Camera:WorldToViewportPoint(targetHrp.Position)
-                    if onScreen then
-                        local line = Drawing.new("Line")
-                        line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                        line.To = Vector2.new(pos.X, pos.Y)
-                        line.Color = Color3.fromRGB(255, 255, 255)
-                        line.Thickness = 1.5
-                        line.Transparency = 1
-                        line.Visible = true
-                        table.insert(Lines, line)
-                    end
-                end
-            end
-        end
-    end
-end)
-
----------------------------------------------------------
--- MENU UI
----------------------------------------------------------
-local FarmTab = Window:CreateTab("Auto Farm")
-FarmTab:CreateToggle({Name = "Auto Farm Level", Callback = function(v) AutoFarmLevel = v end})
-FarmTab:CreateToggle({Name = "Gom Quái (Bring Mob)", Callback = function(v) BringMob = v end})
-FarmTab:CreateToggle({Name = "Đánh Siêu Nhanh & Đánh Xa", Callback = function(v) FastAttack = v end})
-FarmTab:CreateToggle({Name = "Anti-Ban (Bỏ Miss Đòn Đánh)", CurrentValue = true, Callback = function(v) AntiBanMiss = v end})
-FarmTab:CreateDropdown({
-    Name = "Chọn Stat Muốn Cộng", 
-    Options = {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, 
-    Callback = function(v) SelectedStat = type(v) == "table" and v[1] or v end
-})
-FarmTab:CreateToggle({Name = "Auto Cộng Điểm Stats", Callback = function(v) AutoStats = v end})
-
-local ESPTab = Window:CreateTab("ESP Player")
-ESPTab:CreateToggle({Name = "ESP Box", Callback = function(v) ESPBox = v end})
-ESPTab:CreateToggle({Name = "ESP Name", Callback = function(v) ESPName = v end})
-ESPTab:CreateToggle({Name = "ESP Distance", Callback = function(v) ESPDistance = v end})
-ESPTab:CreateToggle({Name = "ESP Line", Callback = function(v) ESPLine = v end})
-ESPTab:CreateToggle({Name = "ESP Bone", Callback = function(v) ESPBone = v end})
-
-local WorldTab = Window:CreateTab("World ESP")
-WorldTab:CreateToggle({Name = "ESP Trái Ác Quỷ", Callback = function(v) ESPFruit = v end})
-WorldTab:CreateToggle({Name = "ESP Rương", Callback = function(v) ESPChest = v end})
-
-local TeleportTab = Window:CreateTab("Teleport")
-local islandList = {"Đảo Khởi Đầu", "Đảo Hạt Dẻ", "Đảo Cát", "Đảo Sa Mạc", "Đảo Tuyết", "Đảo Hải Quân", "Đảo Bầu Trời", "Đảo Tù Nhân", "Đảo Magma"}
-TeleportTab:CreateDropdown({Name = "Chọn Đảo", Options = islandList, Callback = function(v) SelectedIsland = type(v) == "table" and v[1] or v end})
-
-local playerList = {}
-local function UpdatePlayerList()
-    playerList = {}
-    for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(playerList, p.Name) end end
-end
-UpdatePlayerList()
-local PlayerDropdown = TeleportTab:CreateDropdown({Name = "Chọn Người Chơi", Options = playerList, Callback = function(v) SelectedPlayer = type(v) == "table" and v[1] or v end})
-TeleportTab:CreateButton({Name = "Làm Mới Danh Sách", Callback = function() UpdatePlayerList() PlayerDropdown:Refresh(playerList) end})
-
-local MiscTab = Window:CreateTab("Misc")
-MiscTab:CreateToggle({Name = "Bay (Fly)", Callback = function(v) FlyEnabled = v end})
-MiscTab:CreateSlider({Name = "Tốc Độ Bay", Range = {20, 250}, Increment = 5, CurrentValue = 60, Callback = function(v) FlySpeed = v end})
+local MiscTab = CreateTab("Misc")
+MiscTab:CreateToggle({Name = "Bay (Fly)", CurrentValue = false, Callback = function(v) FlyEnabled = v end})
+MiscTab:CreateSlider({Name = "Tốc Độ Bay", Range = {20, 250}, CurrentValue = 60, Callback = function(v) FlySpeed = v end})
 MiscTab:CreateButton({Name = "Xóa Sương Mù", Callback = function() Lighting.FogEnd = 1e5 end})
-MiscTab:CreateButton({
-    Name = "Buff FPS", 
-    Callback = function()
-        settings().Rendering.QualityLevel = 1
-        Lighting.GlobalShadows = false
-    end
-})
 
-local InfoTab = Window:CreateTab("Info")
-InfoTab:CreateParagraph({Title = "Nút Toggle UI", Content = "Bấm vào nút tròn Logo Jollibee trên màn hình để bật/tắt menu!"})
+local InfoTab = CreateTab("Info")
+InfoTab:CreateParagraph({Title = "Jollibee Custom UI", Content = "Giao diện không phụ thuộc Rayfield, mượt nhẹ không lỗi!"})
 InfoTab:CreateParagraph({Title = "Người Dùng", Content = LocalPlayer.Name})
