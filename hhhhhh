@@ -1,0 +1,203 @@
+pcall(function()
+    local g = getgenv and getgenv() or _G
+    if g.debug then g.debug.info, g.debug.getupvalue, g.debug.getconstant = function() end, function() end, function() end end
+    local hook = hookmetamethod or detach
+    if hook then
+        local oldIdx, oldNc
+        oldIdx = hook(game, "__index", function(self, k)
+            return (not checkcaller() and (k == "WalkSpeed" or k == "JumpPower")) and 16 or oldIdx(self, k)
+        end)
+        oldNc = hook(game, "__namecall", function(self, ...)
+            local m, n = getnamecallmethod(), tostring(self.Name):lower()
+            if (m == "FireServer" or m == "InvokeServer") and (n:find("ban") or n:find("cheat") or n:find("validator")) then return nil end
+            return oldNc(self, ...)
+        end)
+    end
+end)
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Lite)", LoadingTitle = "Loading Light Engine...", ConfigurationSaving = {Enabled = false}})
+
+local P, L, TS, RS, VU = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser")
+local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
+LP.Idled:Connect(function() VU:Button2Down(Vector2.zero, Cam.CFrame) task.wait(1) VU:Button2Up(Vector2.zero, Cam.CFrame) end)
+
+local AutoFarm, AutoChest, BringMob, AutoStats, FlyEnabled, FlySpeed, SelectedStat = false, false, false, false, false, 60, "Melee"
+local ESPBox, ESPName, ESPDist = false, false, false
+local CurTween, CurPos
+
+local Quests = {
+    {1, "BanditQuest1", 1, "Bandit", CFrame.new(1059, 16, 1549), CFrame.new(1145, 16, 1630)},
+    {10, "JungleQuest", 1, "Monkey", CFrame.new(-1598, 36, 153), CFrame.new(-1448, 50, 63)},
+    {15, "JungleQuest", 2, "Gorilla", CFrame.new(-1598, 36, 153), CFrame.new(-1237, 6, -486)},
+    {30, "PirateQuest", 1, "Pirate", CFrame.new(-1140, 4, 3828), CFrame.new(-1200, 4, 3900)},
+    {60, "DesertQuest", 1, "Desert Bandit", CFrame.new(894, 6, 4388), CFrame.new(950, 6, 4450)},
+    {90, "SnowQuest", 1, "Snow Bandit", CFrame.new(1385, 87, -1298), CFrame.new(1300, 87, -1350)},
+    {120, "MarineQuest2", 1, "Chief Petty Officer", CFrame.new(-2570, 6, 2060), CFrame.new(-2700, 6, 2100)},
+    {150, "SkyQuest", 1, "Sky Bandit", CFrame.new(-4839, 717, -2619), CFrame.new(-4950, 717, -2900)}
+}
+
+local function GetLvl()
+    local lvl = 1
+    pcall(function() lvl = (LP:FindFirstChild("Data") and LP.Data.Level.Value) or LP.Level.Value end)
+    return lvl
+end
+
+local function GetQ()
+    local l, c = GetLvl(), Quests[1]
+    for _, q in ipairs(Quests) do if l >= q[1] then c = q end end
+    return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]}
+end
+
+local function FlyTo(targetCF)
+    local chr = LP.Character
+    local hrp = chr and chr:FindFirstChild("HumanoidRootPart")
+    local hum = chr and chr:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+    local dist = (hrp.Position - targetCF.Position).Magnitude
+    if dist > 15 then
+        hum.PlatformStand = true
+        for _, v in pairs(chr:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end
+        if not CurPos or (CurPos - targetCF.Position).Magnitude > 5 then
+            CurPos = targetCF.Position
+            if CurTween then CurTween:Cancel() end
+            CurTween = TS:Create(hrp, TweenInfo.new(dist / 220, Enum.EasingStyle.Linear), {CFrame = targetCF})
+            CurTween:Play()
+        end
+    else
+        if CurTween then CurTween:Cancel(); CurTween = nil end
+        CurPos, hrp.CFrame, hum.PlatformStand = nil, targetCF, false
+    end
+end
+
+local function StopFly()
+    if CurTween then CurTween:Cancel(); CurTween = nil end
+    CurPos = nil
+    local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+    if hum and not FlyEnabled then hum.PlatformStand = false end
+end
+
+-- Auto Attack
+task.spawn(function()
+    while true do
+        task.wait(math.random(8, 12) / 100)
+        if AutoFarm then
+            pcall(function()
+                local chr = LP.Character
+                if chr then
+                    if not chr:FindFirstChildOfClass("Tool") then
+                        for _, t in pairs(LP.Backpack:GetChildren()) do
+                            if t:IsA("Tool") and (t.ToolTip == "Melee" or t.ToolTip == "Sword" or t:FindFirstChild("Handle")) then
+                                chr.Humanoid:EquipTool(t) break
+                            end
+                        end
+                    end
+                    local tool = chr:FindFirstChildOfClass("Tool")
+                    if tool then
+                        tool:Activate()
+                        VU:Button1Down(Vector2.new(1, 1), Cam.CFrame)
+                        task.wait(0.02)
+                        VU:Button1Up(Vector2.new(1, 1), Cam.CFrame)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Main Farm Loop
+task.spawn(function()
+    while task.wait(0.15) do
+        if AutoFarm then
+            pcall(function()
+                local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+                local q = GetQ()
+                local qGui = LP.PlayerGui.Main:FindFirstChild("Quest")
+                local hasQ = qGui and qGui.Visible and qGui.Container.QuestTitle.Title.Text ~= ""
+
+                if not hasQ then
+                    if (hrp.Position - q.Npc.Position).Magnitude > 12 then FlyTo(q.Npc)
+                    else StopFly(); hrp.CFrame = q.Npc; task.wait(0.2); RS.Remotes.CommF_:InvokeServer("StartQuest", q.QName, q.QNum) end
+                else
+                    local mob, minD = nil, math.huge
+                    if workspace:FindFirstChild("Enemies") then
+                        for _, v in pairs(workspace.Enemies:GetChildren()) do
+                            if (v.Name == q.MName or v.Name:find(q.MName)) and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
+                                local d = (v.HumanoidRootPart.Position - hrp.Position).Magnitude
+                                if d < minD then minD = d; mob = v end
+                            end
+                        end
+                    end
+                    if not mob then FlyTo(q.Mob)
+                    else
+                        StopFly()
+                        local mHrp = mob.HumanoidRootPart
+                        hrp.CFrame = mHrp.CFrame * CFrame.new(0, 5, 2)
+                        if BringMob then
+                            for _, om in pairs(workspace.Enemies:GetChildren()) do
+                                if om.Name == mob.Name and om:FindFirstChild("HumanoidRootPart") and om:FindFirstChild("Humanoid") and om.Humanoid.Health > 0 then
+                                    if (om.HumanoidRootPart.Position - mHrp.Position).Magnitude <= 120 then
+                                        om.HumanoidRootPart.CFrame, om.HumanoidRootPart.CanCollide, om.Humanoid.WalkSpeed = mHrp.CFrame, false, 0
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Auto Chest
+task.spawn(function()
+    while task.wait(0.25) do
+        if AutoChest and not AutoFarm then
+            pcall(function()
+                local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+                local chest, minD = nil, math.huge
+                for _, v in pairs(workspace:GetChildren()) do
+                    if v.Name:lower():find("chest") then
+                        local p = v:IsA("BasePart") and v or v:FindFirstChildWhichIsA("BasePart")
+                        if p and (p.Position - hrp.Position).Magnitude < minD then minD = (p.Position - hrp.Position).Magnitude; chest = p end
+                    end
+                end
+                if chest then
+                    FlyTo(chest.CFrame)
+                    if (hrp.Position - chest.Position).Magnitude <= 8 then
+                        hrp.CFrame = chest.CFrame
+                        firetouchinterest(hrp, chest, 0); task.wait(0.05); firetouchinterest(hrp, chest, 1)
+                    end
+                else StopFly() end
+            end)
+        end
+    end
+end)
+
+-- Auto Stats
+task.spawn(function()
+    while task.wait(0.5) do
+        if AutoStats then pcall(function() RS.Remotes.CommF_:InvokeServer("AddPoint", SelectedStat, 1) end) end
+    end
+end)
+
+-- UI Tabs
+local FarmTab = Window:CreateTab("Auto Farm")
+FarmTab:CreateToggle({Name = "Auto Farm Level", Callback = function(v) AutoFarm = v if not v then StopFly() end end})
+FarmTab:CreateToggle({Name = "Auto Nhặt Rương", Callback = function(v) AutoChest = v if not v then StopFly() end end})
+FarmTab:CreateToggle({Name = "Gom Quái", Callback = function(v) BringMob = v end})
+FarmTab:CreateDropdown({Name = "Chọn Stat", Options = {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, Callback = function(v) SelectedStat = type(v) == "table" and v[1] or v end})
+FarmTab:CreateToggle({Name = "Auto Up Stats", Callback = function(v) AutoStats = v end})
+
+local ESPTab = Window:CreateTab("ESP Player")
+ESPTab:CreateToggle({Name = "ESP Box", Callback = function(v) ESPBox = v end})
+ESPTab:CreateToggle({Name = "ESP Tên", Callback = function(v) ESPName = v end})
+ESPTab:CreateToggle({Name = "ESP Khoảng Cách", Callback = function(v) ESPDist = v end})
+
+local MiscTab = Window:CreateTab("Misc")
+MiscTab:CreateToggle({Name = "Bay (Fly)", Callback = function(v) FlyEnabled = v end})
+MiscTab:CreateSlider({Name = "Tốc Độ Bay", Range = {20, 250}, Increment = 5, CurrentValue = 60, Callback = function(v) FlySpeed = v end})
+MiscTab:CreateButton({Name = "Buff FPS", Callback = function() settings().Rendering.QualityLevel = 1; L.GlobalShadows = false end})
+
