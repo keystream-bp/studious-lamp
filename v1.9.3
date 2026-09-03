@@ -26,6 +26,7 @@ LP.Idled:Connect(function()
 end)
 
 local AutoFarm, BringMob, FastAttack, FastDistance, AutoBones, AutoKatakuri, AutoBoss = false, false, false, false, false, false, false
+local AutoChestFullMap = false
 local AutoStatsMelee, AutoStatsDefense, AutoStatsSword, AutoStatsFruit = false, false, false, false
 local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, WalkOnWater, SpeedHack, WalkSpeedValue, InfJump = false, false, false, false, false, false, false, 32, false
 local CurTween, CurPos, WaterPart
@@ -69,6 +70,55 @@ local function StopFly()
     local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
     if hum then hum.PlatformStand = false end
 end
+
+-- Logic Auto Nhặt Rương Full Bản Đồ
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if AutoChestFullMap then
+            pcall(function()
+                local chests = {}
+                for _, v in pairs(workspace:GetDescendants()) do
+                    if v:IsA("Part") and v.Name:find("Chest") then
+                        local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                        if myHrp then
+                            table.insert(chests, {Part = v, Dist = (v.Position - myHrp.Position).Magnitude})
+                        end
+                    end
+                end
+
+                if #chests > 0 then
+                    table.sort(chests, function(a, b) return a.Dist < b.Dist end)
+                    for _, chestData in ipairs(chests) do
+                        if not AutoChestFullMap then break end
+                        local chest = chestData.Part
+                        if chest and chest.Parent then
+                            while AutoChestFullMap and chest and chest.Parent do
+                                local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                                if not myHrp then break end
+                                local dist = (chest.Position - myHrp.Position).Magnitude
+                                if dist <= 5 then
+                                    StopFly()
+                                    myHrp.CFrame = chest.CFrame
+                                    firetouchinterest(myHrp, chest, 0)
+                                    task.wait(0.1)
+                                    firetouchinterest(myHrp, chest, 1)
+                                    break
+                                else
+                                    FlyTo(chest.CFrame, 350)
+                                end
+                                task.wait(0.05)
+                            end
+                        end
+                    end
+                else
+                    StopFly()
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+end)
 
 -- Vòng lặp Tấn công
 task.spawn(function()
@@ -253,8 +303,8 @@ UIS.JumpRequest:Connect(function() if InfJump then local hum = LP.Character and 
 
 -- Rayfield UI Setup
 local Window = Rayfield:CreateWindow({
-   Name = "JOLLIBEE Hub",
-   LoadingTitle = "JOLLIBEE Hub",
+   Name = "Andz Dev Hub",
+   LoadingTitle = "Andz Dev Hub",
    LoadingSubtitle = "by Andz Dev",
    ConfigurationSaving = { Enabled = false },
    KeySystem = false
@@ -292,6 +342,11 @@ TabFarm:CreateToggle({
 
 -- Tab Farm Khác
 TabQuest:CreateSection("Farm Nâng Cao")
+TabQuest:CreateToggle({
+   Name = "Auto Farm Rương (Full Map)",
+   CurrentValue = false,
+   Callback = function(v) AutoChestFullMap = v if not v then StopFly() end end,
+})
 TabQuest:CreateToggle({
    Name = "Auto Farm Xương",
    CurrentValue = false,
