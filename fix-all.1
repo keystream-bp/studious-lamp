@@ -16,7 +16,7 @@ pcall(function()
 end)
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Ultimate Ultra Fix)", LoadingTitle = "Loading Upgraded Features...", ConfigurationSaving = {Enabled = false}})
+local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Chest & Island ESP Fixed)", LoadingTitle = "Loading Final Fix...", ConfigurationSaving = {Enabled = false}})
 
 local P, L, TS, RS, VU, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService")
 local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
@@ -25,7 +25,7 @@ LP.Idled:Connect(function() VU:Button2Down(Vector2.zero, Cam.CFrame) task.wait(1
 
 local AutoFarm, AutoChest, BringMob, FastAttack, FastDistance = false, false, false, false, false
 local SelectedWeapon, SelectedStat = "Melee", "Melee"
-local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, ESPLevel, ESPHealth = false, false, false, false, false, false, false
+local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, ESPIsland, ESPLevel, ESPHealth = false, false, false, false, false, false, false, false
 local AutoStats, FlyEnabled, FlySpeed = false, false, 60
 local InfJump, WalkOnWater, SpeedHack, WalkSpeedValue = false, false, false, 32
 local CurTween, CurPos, WaterPart
@@ -88,12 +88,12 @@ local function StopFly()
     if hum then hum.PlatformStand = false end
 end
 
--- Teleport Fruit (Bay mượt như Farm)
+-- Teleport Fruit (Smooth)
 local function TeleportToFruit()
     local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not myHrp then return end
     local targetFruit = nil
-    for _, v in pairs(workspace:GetChildren()) do
+    for _, v in pairs(workspace:GetDescendants()) do
         if (v:IsA("Tool") or v:IsA("Model")) and v.Name:lower():find("fruit") then
             local part = v:IsA("BasePart") and v or v:FindFirstChildWhichIsA("BasePart")
             if part then targetFruit = part break end
@@ -106,9 +106,7 @@ local function TeleportToFruit()
     end
 end
 
--- ==========================================
--- ⚡ AUTO ATTACK (KHÔNG CẦN CHẠM MÀN HÌNH)
--- ==========================================
+-- Auto Attack
 task.spawn(function()
     while true do
         task.wait(FastAttack and 0.03 or 0.15)
@@ -127,12 +125,10 @@ task.spawn(function()
                             end
                         end
                     else
-                        -- Tự kích hoạt đòn đánh liên tục không phụ thuộc click màn hình
                         tool:Activate()
                         VU:Button1Down(Vector2.zero, Cam.CFrame)
                         task.wait(0.01)
                         VU:Button1Up(Vector2.zero, Cam.CFrame)
-                        
                         if FastDistance and tool:FindFirstChild("Handle") then
                             tool.Handle.Size = Vector3.new(40, 40, 40)
                             tool.Handle.CanCollide = false
@@ -200,31 +196,35 @@ RSvc.Heartbeat:Connect(function()
 end)
 
 -- ==========================================
--- 📦 AUTO CHEST (ĐÃ NÂNG CẤP CHUẨN XÁC)
+-- 📦 AUTO CHEST FIX TRIỆT ĐỂ (QUÉT SÂU MAP)
 -- ==========================================
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.2) do
         if AutoChest and not AutoFarm then
             pcall(function()
                 local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
                 
                 local chest, minD = nil, math.huge
-                for _, v in pairs(workspace:GetChildren()) do
-                    if v.Name:lower():find("chest") then
+                for _, v in pairs(workspace:GetDescendants()) do
+                    if v.Name:lower():find("chest") and (v:IsA("BasePart") or v:IsA("Model")) then
                         local p = v:IsA("BasePart") and v or v:FindFirstChildWhichIsA("BasePart")
-                        if p and (p.Position - hrp.Position).Magnitude < minD then 
-                            minD = (p.Position - hrp.Position).Magnitude
-                            chest = p 
+                        if p and p.Parent then
+                            local dist = (p.Position - hrp.Position).Magnitude
+                            if dist < minD then 
+                                minD = dist
+                                chest = p 
+                            end
                         end
                     end
                 end
                 
                 if chest then
                     FlyTo(chest.CFrame)
-                    if (hrp.Position - chest.Position).Magnitude <= 10 then
+                    if (hrp.Position - chest.Position).Magnitude <= 12 then
                         hrp.CFrame = chest.CFrame
                         firetouchinterest(hrp, chest, 0)
+                        task.wait(0.05)
                         firetouchinterest(hrp, chest, 1)
                     end
                 else 
@@ -242,9 +242,7 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- 🏃 MISC: BUFF FPS MAX, NO FOG, SPEED HACK
--- ==========================================
+-- Misc & Environment
 local function AdvancedBuffFPS()
     pcall(function()
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
@@ -268,9 +266,7 @@ local function RemoveFog()
         L.FogEnd = 9e19
         L.FogStart = 9e19
         for _, v in pairs(L:GetChildren()) do
-            if v:IsA("Atmosphere") or v:IsA("PostEffect") then
-                v:Destroy()
-            end
+            if v:IsA("Atmosphere") or v:IsA("PostEffect") then v:Destroy() end
         end
     end)
 end
@@ -288,9 +284,7 @@ RSvc.RenderStepped:Connect(function()
         local hum = chr and chr:FindFirstChildOfClass("Humanoid")
         local hrp = chr and chr:FindFirstChild("HumanoidRootPart")
         
-        if SpeedHack and hum then
-            hum.WalkSpeed = WalkSpeedValue
-        end
+        if SpeedHack and hum then hum.WalkSpeed = WalkSpeedValue end
 
         if WalkOnWater and hrp then
             if not WaterPart or not WaterPart.Parent then
@@ -353,10 +347,21 @@ RSvc.RenderStepped:Connect(function()
     end
 end)
 
--- ESP Fruit System
+-- ESP Fruit & ESP Island
+local Islands = {
+    {"Đảo Khởi Đầu", Vector3.new(1059, 16, 1549)},
+    {"Đảo Khỉ (Jungle)", Vector3.new(-1598, 36, 153)},
+    {"Đảo Hải Tặc (Pirate)", Vector3.new(-1140, 4, 3828)},
+    {"Đảo Sa Mạc (Desert)", Vector3.new(894, 6, 4388)},
+    {"Đảo Tuyết (Snow)", Vector3.new(1385, 87, -1298)},
+    {"Đảo Hải Quân (Marine)", Vector3.new(-2570, 6, 2060)},
+    {"Đảo Mây (Skypiea)", Vector3.new(-4839, 717, -2619)}
+}
+
 task.spawn(function()
     while task.wait(1.5) do
-        for _, v in pairs(workspace:GetChildren()) do
+        -- Fruit ESP
+        for _, v in pairs(workspace:GetDescendants()) do
             if (v:IsA("Tool") or v:IsA("Model")) and v.Name:lower():find("fruit") then
                 local part = v:IsA("BasePart") and v or v:FindFirstChildWhichIsA("BasePart")
                 if part then
@@ -373,6 +378,25 @@ task.spawn(function()
                 end
             end
         end
+
+        -- Island ESP
+        local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        for _, isl in ipairs(Islands) do
+            local folder = workspace:FindFirstChild("IslandESPFolder") or Instance.new("Folder", workspace)
+            folder.Name = "IslandESPFolder"
+            local part = folder:FindFirstChild(isl[1]) or Instance.new("Part", folder)
+            part.Name = isl[1]; part.Position = isl[2]; part.Anchored = true; part.Transparency = 1; part.CanCollide = false; part.Size = Vector3.new(1,1,1)
+
+            local gui = part:FindFirstChild("IslandGui") or Instance.new("BillboardGui", part)
+            gui.Name = "IslandGui"; gui.Size = UDim2.new(0, 200, 0, 40); gui.AlwaysOnTop = true
+            gui.Enabled = ESPIsland
+
+            local txt = gui:FindFirstChild("Txt") or Instance.new("TextLabel", gui)
+            txt.Name = "Txt"; txt.Size = UDim2.new(1,0,1,0); txt.BackgroundTransparency = 1; txt.TextColor3 = Color3.fromRGB(255, 215, 0); txt.TextSize = 13; txt.Font = Enum.Font.SourceSansBold
+            
+            local dist = myHrp and math.floor((isl[2] - myHrp.Position).Magnitude) or 0
+            txt.Text = "🏝️ " .. isl[1] .. "\n[" .. dist .. "m]"
+        end
     end
 end)
 
@@ -383,13 +407,14 @@ FarmTab:CreateDropdown({Name = "Chọn Vũ Khí Farm", Options = {"Melee", "Swor
 FarmTab:CreateToggle({Name = "Gom 3 Quái Chuẩn AoE", Callback = function(v) BringMob = v end})
 FarmTab:CreateToggle({Name = "Đánh Nhanh (Fast Attack)", Callback = function(v) FastAttack = v end})
 FarmTab:CreateToggle({Name = "Đánh Xa (Hitbox Extend)", Callback = function(v) FastDistance = v end})
-FarmTab:CreateToggle({Name = "Auto Nhặt Rương (Upgraded)", Callback = function(v) AutoChest = v if not v then StopFly() end end})
+FarmTab:CreateToggle({Name = "Auto Nhặt Rương (Fixed Map)", Callback = function(v) AutoChest = v if not v then StopFly() end end})
 FarmTab:CreateDropdown({Name = "Chọn Stat", Options = {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, Callback = function(v) SelectedStat = type(v) == "table" and v[1] or v end})
 FarmTab:CreateToggle({Name = "Auto Up Stats", Callback = function(v) AutoStats = v end})
 
 local FruitTab = Window:CreateTab("Fruit System")
 FruitTab:CreateButton({Name = "Bay Lượm Fruit (Smooth)", Callback = function() TeleportToFruit() end})
 FruitTab:CreateToggle({Name = "ESP Trái Ác Quỷ (Fruit)", Callback = function(v) ESPFruit = v end})
+FruitTab:CreateToggle({Name = "ESP Đảo (Island ESP)", Callback = function(v) ESPIsland = v end})
 
 local ESPTab = Window:CreateTab("ESP Player")
 ESPTab:CreateToggle({Name = "ESP Box", Callback = function(v) ESPBox = v end})
