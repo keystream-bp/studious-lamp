@@ -16,7 +16,7 @@ pcall(function()
 end)
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Fast Attack Fix)", LoadingTitle = "Bypassing Attack Speed...", ConfigurationSaving = {Enabled = false}})
+local Window = Rayfield:CreateWindow({Name = "Jolibee Mod (Fixed UI & Combat)", LoadingTitle = "Loading Stable Version...", ConfigurationSaving = {Enabled = false}})
 
 local P, L, TS, RS, VU, RSvc = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService")
 local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
@@ -83,7 +83,7 @@ end
 local function StopFly()
     if CurTween then CurTween:Cancel(); CurTween = nil end
     CurPos = nil
-    local hum = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
     if hum then hum.PlatformStand = false end
 end
 
@@ -105,55 +105,42 @@ local function TeleportToFruit()
     end
 end
 
--- ==========================================
--- ⚡ SIÊU ĐÁNH NHANH (FAST ATTACK DIRECT REMOTE)
--- ==========================================
-local CombatFramework = require(LP.PlayerScripts:WaitForChild("CombatFramework", 2))
-local CombatFrameworkLib = getupvalues(CombatFramework)[2]
-
-local function AttackNoCD()
-    pcall(function()
-        local chr = LP.Character
-        if not chr then return end
-        
-        -- Auto Equip Weapon
-        local tool = chr:FindFirstChildOfClass("Tool")
-        if not tool then
-            for _, t in pairs(LP.Backpack:GetChildren()) do
-                if t:IsA("Tool") and ((SelectedWeapon == "Melee" and t.ToolTip == "Melee") or
-                   (SelectedWeapon == "Sword" and t.ToolTip == "Sword") or
-                   (SelectedWeapon == "Blox Fruit" and t.ToolTip == "Blox Fruit")) then
-                    chr.Humanoid:EquipTool(t)
-                    break
-                end
-            end
-        else
-            -- Bypass Animation & CD
-            tool:Activate()
-            if FastAttack then
-                local activeController = CombatFrameworkLib.activeController
-                if activeController then
-                    activeController.timeToNextAttack = 0
-                    activeController.hitboxMagnitude = FastDistance and 60 or 25
-                    activeController:attack()
-                end
-            end
-        end
-    end)
-end
-
+-- Fast Attack & Reach Fix
 task.spawn(function()
     while true do
-        task.wait(FastAttack and 0.001 or 0.1)
+        task.wait(FastAttack and 0.02 or 0.15)
         if AutoFarm then
-            AttackNoCD()
+            pcall(function()
+                local chr = LP.Character
+                if chr and chr:FindFirstChild("HumanoidRootPart") then
+                    local tool = chr:FindFirstChildOfClass("Tool")
+                    if not tool then
+                        for _, t in pairs(LP.Backpack:GetChildren()) do
+                            if t:IsA("Tool") and ((SelectedWeapon == "Melee" and t.ToolTip == "Melee") or
+                               (SelectedWeapon == "Sword" and t.ToolTip == "Sword") or
+                               (SelectedWeapon == "Blox Fruit" and t.ToolTip == "Blox Fruit")) then
+                                chr.Humanoid:EquipTool(t)
+                                break
+                            end
+                        end
+                    else
+                        tool:Activate()
+                        VU:CaptureController()
+                        VU:ClickButton1(Vector2.new(Cam.ViewportSize.X/2, Cam.ViewportSize.Y/2))
+                        
+                        -- Đánh xa: Mở rộng kích thước Handle vũ khí
+                        if FastDistance and tool:FindFirstChild("Handle") then
+                            tool.Handle.Size = Vector3.new(30, 30, 30)
+                            tool.Handle.CanCollide = false
+                        end
+                    end
+                end
+            end)
         end
     end
 end)
 
--- ==========================================
--- 🚜 AUTO FARM & KÉO QUÁI ĐÁNH XA (HITBOX EXTEND)
--- ==========================================
+-- Auto Farm Loop Anti-Rung
 RSvc.Heartbeat:Connect(function()
     if AutoFarm then
         pcall(function()
@@ -186,23 +173,23 @@ RSvc.Heartbeat:Connect(function()
                     StopFly()
                     local mHrp = mainMob.HumanoidRootPart
                     
-                    -- Đứng cao 9 studs lơ lửng không rung
-                    local targetPos = mHrp.Position + Vector3.new(0, 9, 0)
-                    hrp.CFrame = CFrame.new(targetPos)
+                    -- Vị trí lơ lửng trên đầu quái
+                    hrp.CFrame = CFrame.new(mHrp.Position + Vector3.new(0, 8, 0))
 
-                    -- Kéo 3 quái lên gần chân nhân vật để đòn đánh chạm 100% (Đánh xa)
-                    local grabPos = FastDistance and (hrp.Position - Vector3.new(0, 4, 0)) or mHrp.Position
-                    for i = 1, math.min(3, #mobList) do
-                        local om = mobList[i].Mob
-                        local omHrp = om:FindFirstChild("HumanoidRootPart")
-                        local omHum = om:FindFirstChild("Humanoid")
-                        if omHrp and omHum then
-                            omHrp.CFrame = CFrame.new(grabPos)
-                            omHrp.CanCollide = false
-                            for _, part in pairs(om:GetChildren()) do
-                                if part:IsA("BasePart") then part.CanCollide = false end
+                    -- Kéo 3 quái sát vị trí đánh
+                    if BringMob then
+                        for i = 1, math.min(3, #mobList) do
+                            local om = mobList[i].Mob
+                            local omHrp = om:FindFirstChild("HumanoidRootPart")
+                            local omHum = om:FindFirstChild("Humanoid")
+                            if omHrp and omHum then
+                                omHrp.CFrame = CFrame.new(mHrp.Position)
+                                omHrp.CanCollide = false
+                                for _, part in pairs(om:GetChildren()) do
+                                    if part:IsA("BasePart") then part.CanCollide = false end
+                                end
+                                omHum.WalkSpeed = 0
                             end
-                            omHum.WalkSpeed = 0
                         end
                     end
                 end
@@ -244,7 +231,7 @@ task.spawn(function()
     end
 end)
 
--- ESP Players
+-- ESP System
 local Lines = {}
 RSvc.RenderStepped:Connect(function()
     local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -311,12 +298,13 @@ task.spawn(function()
     end
 end)
 
--- UI MENU
+-- UI MENU RAYFIELD
 local FarmTab = Window:CreateTab("Auto Farm")
 FarmTab:CreateToggle({Name = "Auto Farm Level", Callback = function(v) AutoFarm = v if not v then StopFly() end end})
 FarmTab:CreateDropdown({Name = "Chọn Vũ Khí Farm", Options = {"Melee", "Sword", "Blox Fruit"}, Callback = function(v) SelectedWeapon = type(v) == "table" and v[1] or v end})
-FarmTab:CreateToggle({Name = "Đánh Nhanh (Fast Attack Bypass)", Callback = function(v) FastAttack = v end})
-FarmTab:CreateToggle({Name = "Đánh Xa (Extends Reach)", Callback = function(v) FastDistance = v end})
+FarmTab:CreateToggle({Name = "Gom 3 Quái Chuẩn AoE", Callback = function(v) BringMob = v end})
+FarmTab:CreateToggle({Name = "Đánh Nhanh (Fast Attack)", Callback = function(v) FastAttack = v end})
+FarmTab:CreateToggle({Name = "Đánh Xa (Hitbox Extend)", Callback = function(v) FastDistance = v end})
 FarmTab:CreateToggle({Name = "Auto Nhặt Rương", Callback = function(v) AutoChest = v if not v then StopFly() end end})
 FarmTab:CreateDropdown({Name = "Chọn Stat", Options = {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, Callback = function(v) SelectedStat = type(v) == "table" and v[1] or v end})
 FarmTab:CreateToggle({Name = "Auto Up Stats", Callback = function(v) AutoStats = v end})
@@ -337,4 +325,3 @@ local MiscTab = Window:CreateTab("Misc")
 MiscTab:CreateToggle({Name = "Bay (Fly)", Callback = function(v) FlyEnabled = v end})
 MiscTab:CreateSlider({Name = "Tốc Độ Bay", Range = {20, 250}, Increment = 5, CurrentValue = 60, Callback = function(v) FlySpeed = v end})
 MiscTab:CreateButton({Name = "Buff FPS", Callback = function() settings().Rendering.QualityLevel = 1; L.GlobalShadows = false end})
-
