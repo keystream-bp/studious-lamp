@@ -1,10 +1,28 @@
-local P, R, U, T = game:GetService("Players"), game:GetService("ReplicatedStorage"), game:GetService("UserInputService"), game:GetService("TweenService")
-local L, C = P.LocalPlayer, workspace.CurrentCamera
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local P, R, S = game:GetService("Players"), game:GetService("ReplicatedStorage"), game:GetService("RunService")
+local L = P.LocalPlayer
 local Net = R:FindFirstChild("RigControllerEvent") or R.Remotes:FindFirstChild("Validator") or R.Remotes:FindFirstChild("CommE")
 
--- Config
-local CFG = {Box=false, Name=false, Dist=false, HP=false, Farm=false, Click=false, Reach=false, ReachDist=30, Bring=false, Wep="Võ (Melee)"}
-local QuestData = {
+local KEY_URL = "https://keystream-bp.github.io/receive/key.html?id=cc3m"
+setclipboard(KEY_URL)
+
+local Window = Rayfield:CreateWindow({
+   Name = "Jollibee Hub",
+   LoadingTitle = "Checking Key...",
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = true,
+   KeySettings = {
+      Title = "Jollibee Hub - Key System",
+      Subtitle = "Lấy Key để dùng script",
+      Note = "Link lấy key đã tự động copy vào Clipboard!",
+      FileName = "JollibeeKey",
+      SaveKey = true,
+      Key = {"JollibeeVIP2026"} -- Thay key của bạn tại đây
+   }
+})
+
+local CFG = {Farm=false, Click=false, Reach=false, ReachDist=30, Bring=false, Wep="Võ (Melee)", Box=false, Name=false, Dist=false, HP=false}
+local Quests = {
     {1, "BanditQuest1", "Bandit", Vector3.new(1059,16,1549), Vector3.new(1145,16,1630)},
     {10, "JungleQuest", "Monkey", Vector3.new(-1598,36,153), Vector3.new(-1448,50,63)},
     {15, "JungleQuest", "Gorilla", Vector3.new(-1598,36,153), Vector3.new(-1237,6,-486)},
@@ -12,91 +30,33 @@ local QuestData = {
     {60, "DesertQuest", "Desert Bandit", Vector3.new(894,6,4388), Vector3.new(950,6,4450)}
 }
 
--- UI Base
-local Gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
-Gui.Name, Gui.ResetOnSpawn = "JollibeeMod", false
+-- UI Tabs
+local FarmTab = Window:CreateTab("Auto Farm", 4483362458)
+local ESPTab = Window:CreateTab("ESP Player", 4483362458)
 
-local Main = Instance.new("Frame", Gui)
-Main.Size, Main.Position, Main.BackgroundColor3 = UDim2.new(0, 480, 0, 300), UDim2.new(0.5, -240, 0.5, -150), Color3.fromRGB(22, 22, 28)
-Main.Active, Main.Draggable = true, true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
+FarmTab:CreateDropdown({Name = "Vũ Khí Farm", Options = {"Võ (Melee)", "Kiếm (Sword)", "Trái Blox (Blox Fruit)", "Súng (Gun)"}, CurrentOption = {"Võ (Melee)"}, MultipleOptions = false, Callback = function(v) CFG.Wep = v[1] end})
+FarmTab:CreateToggle({Name = "Auto Farm Level", CurrentValue = false, Callback = function(v) CFG.Farm = v end})
+FarmTab:CreateToggle({Name = "Tự Động Đánh (Auto Click)", CurrentValue = false, Callback = function(v) CFG.Click = v end})
+FarmTab:CreateToggle({Name = "Đánh Xa (Reach)", CurrentValue = false, Callback = function(v) CFG.Reach = v end})
+FarmTab:CreateSlider({Name = "Tầm Đánh Xa", Range = {10, 100}, Increment = 5, Suffix = "Studs", CurrentValue = 30, Callback = function(v) CFG.ReachDist = v end})
+FarmTab:CreateToggle({Name = "Gom Quái (Bring Mob)", CurrentValue = false, Callback = function(v) CFG.Bring = v end})
 
-local BtnToggle = Instance.new("TextButton", Gui)
-BtnToggle.Size, BtnToggle.Position, BtnToggle.BackgroundColor3, BtnToggle.Text = UDim2.new(0, 45, 0, 45), UDim2.new(0.08, 0, 0.15, 0), Color3.fromRGB(220, 20, 60), "J"
-BtnToggle.TextColor3, BtnToggle.TextSize, BtnToggle.Font = Color3.fromRGB(255, 255, 255), 24, Enum.Font.FredokaOne
-Instance.new("UICorner", BtnToggle).CornerRadius = UDim.new(1, 0)
-BtnToggle.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+ESPTab:CreateToggle({Name = "ESP Box", CurrentValue = false, Callback = function(v) CFG.Box = v end})
+ESPTab:CreateToggle({Name = "ESP Tên", CurrentValue = false, Callback = function(v) CFG.Name = v end})
+ESPTab:CreateToggle({Name = "ESP Khoảng Cách", CurrentValue = false, Callback = function(v) CFG.Dist = v end})
+ESPTab:CreateToggle({Name = "ESP Máu", CurrentValue = false, Callback = function(v) CFG.HP = v end})
 
-local Content = Instance.new("ScrollingFrame", Main)
-Content.Size, Content.Position, Content.BackgroundTransparency = UDim2.new(1, -20, 1, -40), UDim2.new(0, 10, 0, 30), 1
-Content.ScrollBarThickness = 2
-local Layout = Instance.new("UIListLayout", Content)
-Layout.Padding = UDim.new(0, 5)
-
--- UI Helper
-local function AddToggle(txt, cfgKey)
-    local f = Instance.new("Frame", Content)
-    f.Size, f.BackgroundColor3 = UDim2.new(1, 0, 0, 32), Color3.fromRGB(30, 30, 38)
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
-    
-    local l = Instance.new("TextLabel", f)
-    l.Text, l.Size, l.BackgroundTransparency, l.TextColor3, l.Font, l.TextXAlignment = "  "..txt, UDim2.new(0.7, 0, 1, 0), 1, Color3.fromRGB(220, 220, 220), Enum.Font.SourceSans, Enum.TextXAlignment.Left
-    
-    local b = Instance.new("TextButton", f)
-    b.Size, b.Position, b.Text, b.Font, b.TextColor3 = UDim2.new(0, 45, 0, 22), UDim2.new(1, -50, 0.5, -11), CFG[cfgKey] and "ON" or "OFF", Enum.Font.SourceSansBold, Color3.fromRGB(255, 255, 255)
-    b.BackgroundColor3 = CFG[cfgKey] and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(60, 60, 70)
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
-    
-    b.MouseButton1Click:Connect(function()
-        CFG[cfgKey] = not CFG[cfgKey]
-        b.Text = CFG[cfgKey] and "ON" or "OFF"
-        b.BackgroundColor3 = CFG[cfgKey] and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(60, 60, 70)
-    end)
-end
-
-local function AddDropdown(txt, opts, callback)
-    local f = Instance.new("Frame", Content)
-    f.Size, f.BackgroundColor3 = UDim2.new(1, 0, 0, 32), Color3.fromRGB(30, 30, 38)
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
-    
-    local l = Instance.new("TextLabel", f)
-    l.Text, l.Size, l.BackgroundTransparency, l.TextColor3, l.Font, l.TextXAlignment = "  "..txt, UDim2.new(0.4, 0, 1, 0), 1, Color3.fromRGB(220, 220, 220), Enum.Font.SourceSans, Enum.TextXAlignment.Left
-    
-    local b = Instance.new("TextButton", f)
-    b.Size, b.Position, b.Text, b.Font, b.TextColor3 = UDim2.new(0.55, 0, 0.7, 0), UDim2.new(0.42, 0, 0.15, 0), opts[1], Enum.Font.SourceSansBold, Color3.fromRGB(255, 255, 255)
-    b.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
-    
-    local idx = 1
-    b.MouseButton1Click:Connect(function()
-        idx = idx % #opts + 1
-        b.Text = opts[idx]
-        callback(opts[idx])
-    end)
-end
-
--- Render Options
-AddDropdown("Vũ Khí Farm", {"Võ (Melee)", "Kiếm (Sword)", "Trái Blox (Blox Fruit)", "Súng (Gun)"}, function(v) CFG.Wep = v end)
-AddToggle("Auto Farm Level", "Farm")
-AddToggle("Tự Động Đánh (Auto Click)", "Click")
-AddToggle("Đánh Xa (Reach)", "Reach")
-AddToggle("Gom Quái (Bring Mob)", "Bring")
-AddToggle("ESP Box", "Box")
-AddToggle("ESP Tên", "Name")
-AddToggle("ESP Khoảng Cách", "Dist")
-AddToggle("ESP Máu", "HP")
-
--- Core Logic Functions
+-- Equip Helper
 local function EquipWep()
     local chr = L.Character
     if not chr or chr:FindFirstChildOfClass("Tool") then return end
     for _, t in pairs(L.Backpack:GetChildren()) do
         if t:IsA("Tool") then
-            local tt, tn = t:FindFirstChild("ToolTip") and t.ToolTip.Value or "", string.lower(t.Name)
-            if (CFG.Wep == "Võ (Melee)" and (tt == "Melee" or tn:find("combat") or tn:find("step"))) or
-               (CFG.Wep == "Kiếm (Sword)" and (tt == "Sword" or tn:find("sword") or tn:find("katana"))) or
-               (CFG.Wep == "Trái Blox (Blox Fruit)" and (tt == "Blox Fruit" or tn:find("fruit"))) or
-               (CFG.Wep == "Súng (Gun)" and (tt == "Gun" or tn:find("gun"))) then
+            local tt, tn = t:FindFirstChild("ToolTip") and t.ToolTip.Value or "", t.Name:lower()
+            if (CFG.Wep:find("Võ") and (tt == "Melee" or tn:find("combat") or tn:find("step"))) or
+               (CFG.Wep:find("Kiếm") and (tt == "Sword" or tn:find("sword") or tn:find("katana"))) or
+               (CFG.Wep:find("Trái") and (tt == "Blox Fruit" or tn:find("fruit"))) or
+               (CFG.Wep:find("Súng") and (tt == "Gun" or tn:find("gun"))) then
                 chr.Humanoid:EquipTool(t) break
             end
         end
@@ -104,39 +64,28 @@ local function EquipWep()
 end
 
 -- ESP Loop
-game:GetService("RunService").RenderStepped:Connect(function()
+S.RenderStepped:Connect(function()
     for _, p in pairs(P:GetPlayers()) do
         if p ~= L and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local chr, hrp, hum = p.Character, p.Character.HumanoidRootPart, p.Character:FindFirstChildOfClass("Humanoid")
-            
-            -- Box
+            if not hum or hum.Health <= 0 then continue end
+
             local hl = chr:FindFirstChild("J_HL")
-            if CFG.Box and hum and hum.Health > 0 then
-                if not hl then
-                    hl = Instance.new("Highlight", chr)
-                    hl.Name, hl.FillColor, hl.FillTransparency = "J_HL", Color3.fromRGB(255, 0, 50), 0.6
-                end
+            if CFG.Box then
+                if not hl then hl = Instance.new("Highlight", chr) hl.Name, hl.FillColor, hl.FillTransparency = "J_HL", Color3.fromRGB(255, 0, 50), 0.6 end
                 hl.Enabled = true
             elseif hl then hl.Enabled = false end
 
-            -- Info & Health
             local bg = hrp:FindFirstChild("J_BG")
-            if (CFG.Name or CFG.Dist or CFG.HP) and hum and hum.Health > 0 then
+            if CFG.Name or CFG.Dist or CFG.HP then
                 if not bg then
-                    bg = Instance.new("BillboardGui", hrp)
-                    bg.Name, bg.Size, bg.AlwaysOnTop, bg.StudsOffset = "J_BG", UDim2.new(0, 180, 0, 50), true, Vector3.new(0, 3, 0)
-                    local txt = Instance.new("TextLabel", bg)
-                    txt.Name, txt.Size, txt.BackgroundTransparency, txt.TextColor3, txt.Font = "Txt", UDim2.new(1, 0, 0, 20), 1, Color3.fromRGB(0, 255, 255), Enum.Font.SourceSansBold
-                    local bgBar = Instance.new("Frame", bg)
-                    bgBar.Name, bgBar.Size, bgBar.Position, bgBar.BackgroundColor3 = "BarBG", UDim2.new(0.8, 0, 0, 5), UDim2.new(0.1, 0, 0.6, 0), Color3.fromRGB(40,40,40)
-                    local fill = Instance.new("Frame", bgBar)
-                    fill.Name, fill.Size, fill.BackgroundColor3 = "Fill", UDim2.new(1, 0, 1, 0), Color3.fromRGB(0, 255, 100)
+                    bg = Instance.new("BillboardGui", hrp) bg.Name, bg.Size, bg.AlwaysOnTop, bg.StudsOffset = "J_BG", UDim2.new(0, 180, 0, 50), true, Vector3.new(0, 3, 0)
+                    local txt = Instance.new("TextLabel", bg) txt.Name, txt.Size, txt.BackgroundTransparency, txt.TextColor3, txt.Font = "Txt", UDim2.new(1, 0, 0, 20), 1, Color3.fromRGB(0, 255, 255), Enum.Font.SourceSansBold
+                    local bar = Instance.new("Frame", bg) bar.Name, bar.Size, bar.Position, bar.BackgroundColor3 = "BarBG", UDim2.new(0.8, 0, 0, 5), UDim2.new(0.1, 0, 0.6, 0), Color3.fromRGB(40,40,40)
+                    local fill = Instance.new("Frame", bar) fill.Name, fill.Size, fill.BackgroundColor3 = "Fill", UDim2.new(1, 0, 1, 0), Color3.fromRGB(0, 255, 100)
                 end
                 bg.Enabled = true
-                
-                local str = (CFG.Name and p.Name or "") .. (CFG.Dist and L.Character and L.Character:FindFirstChild("HumanoidRootPart") and (" ["..math.floor((hrp.Position - L.Character.HumanoidRootPart.Position).Magnitude).."m]") or "")
-                bg.Txt.Text = str
-                
+                bg.Txt.Text = (CFG.Name and p.Name or "") .. (CFG.Dist and L.Character and L.Character:FindFirstChild("HumanoidRootPart") and (" ["..math.floor((hrp.Position - L.Character.HumanoidRootPart.Position).Magnitude).."m]") or "")
                 bg.BarBG.Visible = CFG.HP
                 if CFG.HP then
                     local pct = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
@@ -148,7 +97,7 @@ game:GetService("RunService").RenderStepped:Connect(function()
     end
 end)
 
--- Fast / Reach Attack & Click
+-- Auto Attack / Reach Engine
 task.spawn(function()
     while task.wait(0.03) do
         if CFG.Click or CFG.Farm then
@@ -167,9 +116,7 @@ task.spawn(function()
                 local hits, reach = {}, CFG.Reach and CFG.ReachDist or 60
                 for _, e in pairs(workspace.Enemies:GetChildren()) do
                     if e:FindFirstChild("Humanoid") and e.Humanoid.Health > 0 and e:FindFirstChild("HumanoidRootPart") then
-                        if (e.HumanoidRootPart.Position - hrp.Position).Magnitude <= reach then
-                            table.insert(hits, e.HumanoidRootPart)
-                        end
+                        if (e.HumanoidRootPart.Position - hrp.Position).Magnitude <= reach then table.insert(hits, e.HumanoidRootPart) end
                     end
                 end
                 if #hits > 0 then Net:FireServer("RegisterHit", tool:FindFirstChild("Handle") or hrp, hits) end
@@ -178,7 +125,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Farm Loop
+-- Auto Farm
 task.spawn(function()
     while task.wait(0.1) do
         if CFG.Farm then
@@ -187,23 +134,16 @@ task.spawn(function()
                 if not hrp then return end
                 
                 local lvl = L.Data.Level.Value
-                local q = QuestData[1]
-                for _, v in ipairs(QuestData) do if lvl >= v[1] then q = v end end
+                local q = Quests[1]
+                for _, v in ipairs(Quests) do if lvl >= v[1] then q = v end end
                 
                 local qUI = L.PlayerGui.Main:FindFirstChild("Quest")
                 if not (qUI and qUI.Visible) then
                     hrp.CFrame = CFrame.new(q[4] + Vector3.new(0,3,0))
-                    if (hrp.Position - q[4]).Magnitude < 10 then
-                        R.Remotes.CommF_:InvokeServer("StartQuest", q[2], 1)
-                    end
+                    if (hrp.Position - q[4]).Magnitude < 10 then R.Remotes.CommF_:InvokeServer("StartQuest", q[2], 1) end
                 else
-                    local target = nil
-                    for _, e in pairs(workspace.Enemies:GetChildren()) do
-                        if e.Name == q[3] and e:FindFirstChild("Humanoid") and e.Humanoid.Health > 0 and e:FindFirstChild("HumanoidRootPart") then
-                            target = e break
-                        end
-                    end
-                    if target then
+                    local target = workspace.Enemies:FindFirstChild(q[3])
+                    if target and target:FindFirstChild("HumanoidRootPart") and target.Humanoid.Health > 0 then
                         hrp.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 9, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         hrp.Velocity = Vector3.zero
                         if CFG.Bring then
