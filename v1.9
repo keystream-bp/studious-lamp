@@ -15,14 +15,19 @@ pcall(function()
     end
 end)
 
-local P, L, TS, RS, VU, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("VirtualUser"), game:GetService("RunService"), game:GetService("UserInputService")
+local P, L, TS, RS, RSvc, UIS = game:GetService("Players"), game:GetService("Lighting"), game:GetService("TweenService"), game:GetService("ReplicatedStorage"), game:GetService("RunService"), game:GetService("UserInputService")
 local LP, Cam = P.LocalPlayer, workspace.CurrentCamera
 
-LP.Idled:Connect(function() VU:Button2Down(Vector2.zero, Cam.CFrame) task.wait(1) VU:Button2Up(Vector2.zero, Cam.CFrame) end)
+-- Anti-AFK an toàn (dùng Idled không click giả lập)
+LP.Idled:Connect(function()
+    local bb = game:GetService("VirtualUser")
+    bb:CaptureController()
+    bb:ClickButton2(Vector2.new())
+end)
 
-local AutoFarm, BringMob, FastAttack, FastDistance, AutoBones, AutoKatakuri, AutoBoss, AutoFarmSea = false, false, false, false, false, false, false, false
+local AutoFarm, BringMob, FastAttack, FastDistance, AutoBones, AutoKatakuri, AutoBoss = false, false, false, false, false, false, false
 local AutoStatsMelee, AutoStatsDefense, AutoStatsSword, AutoStatsFruit = false, false, false, false
-local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, AutoStoreFruit, WalkOnWater, SpeedHack, WalkSpeedValue, InfJump = false, false, false, false, false, false, false, false, 32, false
+local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, WalkOnWater, SpeedHack, WalkSpeedValue, InfJump = false, false, false, false, false, false, false, 32, false
 local CurTween, CurPos, WaterPart
 
 local Quests = {
@@ -65,24 +70,36 @@ local function StopFly()
     if hum then hum.PlatformStand = false end
 end
 
+-- Vòng lặp Tấn công đã SỬA LỖI UI
 task.spawn(function()
     while true do
-        task.wait(FastAttack and 0.015 or 0.15)
         if AutoFarm or AutoBones or AutoKatakuri or AutoBoss then
             pcall(function()
                 local chr = LP.Character
                 if chr and chr:FindFirstChild("Humanoid") and chr.Humanoid.Health > 0 then
                     local tool = chr:FindFirstChildOfClass("Tool")
                     if not tool then
-                        for _, t in pairs(LP.Backpack:GetChildren()) do if t:IsA("Tool") then chr.Humanoid:EquipTool(t) break end end
+                        for _, t in pairs(LP.Backpack:GetChildren()) do
+                            if t:IsA("Tool") and t.ToolTip ~= "Gun" then 
+                                chr.Humanoid:EquipTool(t) 
+                                break 
+                            end 
+                        end
                     else
+                        -- Tấn công trực tiếp bằng Tool Activate không chạm vào UI
                         tool:Activate()
-                        VU:Button1Down(Vector2.zero, Cam.CFrame) task.wait(0.005) VU:Button1Up(Vector2.zero, Cam.CFrame)
-                        if FastDistance and tool:FindFirstChild("Handle") then tool.Handle.Size, tool.Handle.CanCollide = Vector3.new(50, 50, 50), false end
+                        if RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net") then
+                            pcall(function() RS.Modules.Net:FindFirstChild("RegisterAttack"):InvokeServer() end)
+                        end
+                        if FastDistance and tool:FindFirstChild("Handle") then 
+                            tool.Handle.Size = Vector3.new(50, 50, 50)
+                            tool.Handle.CanCollide = false 
+                        end
                     end
                 end
             end)
         end
+        task.wait(FastAttack and 0.015 or 0.2)
     end
 end)
 
