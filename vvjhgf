@@ -3,13 +3,11 @@
 ---------------------------------------------------------
 pcall(function()
     local g = getgenv and getgenv() or _G
-    -- Chặn truy vết debug function
     if g.debug then
         g.debug.info = function() return nil end
         g.debug.getupvalue = function() return nil end
         g.debug.getconstant = function() return nil end
     end
-    -- Chặn hookmetamethod từ Server Anticheat
     local hook = hookmetamethod or detach
     if hook then
         local oldIndex
@@ -25,7 +23,7 @@ end)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
     Name = "Jolibee Mod (Bypass & Anti-Ban)",
-    LoadingTitle = "Đang nạp Anti-Debug & Fast Hit Engine...",
+    LoadingTitle = "Đang nạp Jollibee Mod UI...",
     ConfigurationSaving = {Enabled = false}
 })
 
@@ -35,24 +33,68 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
+local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Anti-AFK
+---------------------------------------------------------
+-- TẠO NÚT TRÒN LOGO JOLLIBEE BẬT/TẮT MENU
+---------------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "JollibeeToggleGui"
+ScreenGui.ResetOnSpawn = false
+
+pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
+if not ScreenGui.Parent then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local ToggleButton = Instance.new("ImageButton")
+ToggleButton.Name = "JollibeeButton"
+ToggleButton.Size = UDim2.new(0, 55, 0, 55)
+ToggleButton.Position = UDim2.new(0.1, 0, 0.15, 0)
+ToggleButton.Image = "rbxassetid://10600100779" -- Logo Jollibee
+ToggleButton.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+ToggleButton.BorderColor3 = Color3.fromRGB(255, 215, 0)
+ToggleButton.BorderSizePixel = 2
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+ToggleButton.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0) -- Làm tròn hoàn toàn
+UICorner.Parent = ToggleButton
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Thickness = 2.5
+UIStroke.Color = Color3.fromRGB(255, 215, 0)
+UIStroke.Parent = ToggleButton
+
+-- Bật/Tắt Menu Rayfield khi nhấn nút
+ToggleButton.MouseButton1Click:Connect(function()
+    if game:GetService("VirtualInputManager") then
+        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.K, false, game)
+        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.K, false, game)
+    end
+end)
+
+---------------------------------------------------------
+-- ANTI-AFK & BIẾN HỆ THỐNG
+---------------------------------------------------------
 LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
     task.wait(1)
     VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
 end)
 
--- Biến Trạng Thái
 local ESPBox, ESPName, ESPLine, ESPDistance, ESPBone = false, false, false, false, false
 local ESPFruit, ESPChest = false, false
 local FlyEnabled, FlySpeed = false, 60
 local SelectedPlayer, SelectedIsland, CurrentTween = "", "", nil
 
--- Biến Auto Farm
 local AutoFarmLevel = false
 local FastAttack = false
 local AutoStats = false
@@ -61,7 +103,7 @@ local AntiBanMiss = true
 local SelectedStat = "Melee"
 
 ---------------------------------------------------------
--- DANH SÁCH QUEST SEA 1
+-- QUEST DATA (SEA 1)
 ---------------------------------------------------------
 local QuestData = {
     {Level = 1, QuestName = "BanditQuest1", MobName = "Bandit", NpcPos = Vector3.new(1059, 16, 1549), MobPos = Vector3.new(1145, 16, 1630)},
@@ -99,7 +141,7 @@ local function SmoothFlyTo(targetCFrame)
 end
 
 ---------------------------------------------------------
--- ENGINE FAST ATTACK + REGISTER HIT REAL (ĐÁNH XA & ANTI-BAN MISS)
+-- FAST ATTACK & AUTO FARM ENGINE
 ---------------------------------------------------------
 
 -- Auto Equip Tool
@@ -121,14 +163,13 @@ task.spawn(function()
     end
 end)
 
--- Fast Hit Engine bằng RegisterHit Event
+-- Fast Hit Engine (RegisterHit)
 local NetEvent = ReplicatedStorage:FindFirstChild("RigControllerEvent") or ReplicatedStorage.Remotes:FindFirstChild("Validator") or ReplicatedStorage.Remotes:FindFirstChild("CommE")
 
 task.spawn(function()
     while task.wait(0.01) do
         if AutoFarmLevel or FastAttack then
             pcall(function()
-                -- Anti-Ban Miss System: Bỏ qua 12% số lượng đòn đánh để tạo độ trễ giả lập người chơi thật
                 if AntiBanMiss and math.random(1, 100) <= 12 then
                     task.wait(0.05)
                     return
@@ -141,7 +182,6 @@ task.spawn(function()
 
                 tool:Activate()
 
-                -- Quét danh sách quái trong vùng đánhxa (Khoảng cách 60 studs)
                 local hitList = {}
                 for _, enemy in pairs(workspace.Enemies:GetChildren()) do
                     if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
@@ -152,7 +192,6 @@ task.spawn(function()
                     end
                 end
 
-                -- Gửi gói sát thương RegisterHit cho tất cả quái đã gom/đánh xa
                 if #hitList > 0 and NetEvent then
                     local handle = tool:FindFirstChild("Handle") or hrp
                     NetEvent:FireServer("RegisterHit", handle, hitList)
@@ -162,7 +201,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Farm & Bring Mob
+-- Auto Farm Level & Bring Mob
 task.spawn(function()
     while task.wait(0.1) do
         if AutoFarmLevel then
@@ -199,11 +238,9 @@ task.spawn(function()
                     else
                         local mobHrp = mainMob.HumanoidRootPart
                         
-                        -- Vị trí người chơi lơ lửng an toàn
                         hrp.CFrame = mobHrp.CFrame * CFrame.new(0, 9, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         hrp.Velocity = Vector3.zero
 
-                        -- Gom quái
                         if BringMob or AutoFarmLevel then
                             for _, otherMob in pairs(workspace.Enemies:GetChildren()) do
                                 if otherMob.Name == quest.MobName and otherMob:FindFirstChild("HumanoidRootPart") and otherMob:FindFirstChild("Humanoid") and otherMob.Humanoid.Health > 0 then
@@ -479,5 +516,5 @@ MiscTab:CreateButton({
 })
 
 local InfoTab = Window:CreateTab("Info")
-InfoTab:CreateParagraph({Title = "Bảo Vệ", Content = "Đã bật Anti-Debug + Anti-Ban Miss Hit!"})
+InfoTab:CreateParagraph({Title = "Nút Toggle UI", Content = "Bấm vào nút tròn Logo Jollibee trên màn hình để bật/tắt menu!"})
 InfoTab:CreateParagraph({Title = "Người Dùng", Content = LocalPlayer.Name})
