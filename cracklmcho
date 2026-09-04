@@ -1,0 +1,369 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+local Window = Rayfield:CreateWindow({
+    Name = "Jollibee Hub | Full Farm & ESP Blox Fruits",
+    LoadingTitle = "Jollibee Hub Loading...",
+    LoadingSubtitle = "by Jollibee",
+    ConfigurationSaving = {Enabled = false},
+    KeySystem = false
+})
+
+-- TABS
+local HomeTab = Window:CreateTab("Home")
+local FarmTab = Window:CreateTab("Main Farm")
+local StatTab = Window:CreateTab("Auto Stats")
+local EspTab = Window:CreateTab("Full ESP Systems")
+
+-- ==========================================
+-- HOME TAB
+-- ==========================================
+HomeTab:CreateSection("Thông Tin")
+HomeTab:CreateLabel("Jollibee Hub - Full Farm & ESP Edition ❤️")
+
+getgenv().Speed = 26
+HomeTab:CreateInput({
+    Name = "Speed Hack",
+    PlaceholderText = "Nhập tốc độ (26)",
+    Callback = function(v)
+        getgenv().Speed = tonumber(v) or 26
+        if LP.Character and LP.Character:FindFirstChild("Humanoid") then 
+            LP.Character.Humanoid.WalkSpeed = getgenv().Speed 
+        end
+    end
+})
+
+getgenv().AntiAFK = true
+HomeTab:CreateToggle({
+    Name = "Anti AFK",
+    CurrentValue = true,
+    Callback = function(v) getgenv().AntiAFK = v end
+})
+
+LP.Idled:Connect(function()
+    if getgenv().AntiAFK then 
+        game:GetService("VirtualUser"):Button2Down(Vector2.zero, workspace.CurrentCamera.CFrame) 
+        task.wait(1) 
+        game:GetService("VirtualUser"):Button2Up(Vector2.zero, workspace.CurrentCamera.CFrame) 
+    end
+end)
+
+HomeTab:CreateButton({
+    Name = "Giảm Lag (FPS Boost)",
+    Callback = function()
+        local t, l = workspace.Terrain, game:GetService("Lighting")
+        t.WaterWaveSize, t.WaterWaveSpeed, t.WaterReflectance, t.WaterTransparency, l.GlobalShadows, l.FogEnd, l.Brightness = 0, 0, 0, 0, false, 9e9, 0
+        settings().Rendering.QualityLevel = "Level01"
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("BasePart") then v.Material = "Plastic" v.Reflectance = 0
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Lifetime = NumberRange.new(0)
+            elseif v:IsA("Explosion") or v:IsA("Fire") or v:IsA("Light") then v.Enabled = false end
+        end
+        Rayfield:Notify({Title = "Jollibee Hub", Content = "Đã tối ưu FPS thành công!", Duration = 2})
+    end
+})
+
+-- ==========================================
+-- MAIN FARM TAB (FULL CẤU HÌNH FARM)
+-- ==========================================
+FarmTab:CreateSection("Chọn Vũ Khí & Chế Độ")
+
+getgenv().SelectWeapon = "Melee"
+FarmTab:CreateDropdown({
+   Name = "Chọn Vũ Khí Farm",
+   Options = {"Melee", "Sword", "Blox Fruit"},
+   CurrentOption = {"Melee"},
+   Callback = function(Option)
+      getgenv().SelectWeapon = Option[1]
+   end,
+})
+
+FarmTab:CreateSection("Tính Năng Farm Tự Động")
+
+getgenv().AutoFarmLevel = false
+getgenv().AutoAcceptQuest = true
+getgenv().FastAttack = true
+getgenv().BringMob = true
+getgenv().AutoEquip = true
+
+FarmTab:CreateToggle({
+    Name = "Auto Farm Level (Tự Làm Nhiệm Vụ)",
+    CurrentValue = false,
+    Callback = function(v) getgenv().AutoFarmLevel = v end
+})
+
+FarmTab:CreateToggle({
+    Name = "Đánh Nhanh & Đánh Xa (Fast Attack - Teddy)",
+    CurrentValue = true,
+    Callback = function(v) getgenv().FastAttack = v end
+})
+
+FarmTab:CreateToggle({
+    Name = "Gom Quái (Bring Mob - Teddy)",
+    CurrentValue = true,
+    Callback = function(v) getgenv().BringMob = v end
+})
+
+-- Hàm Tự Động Trang Bị Vũ Khí
+local function EquipWeapon()
+    if not getgenv().AutoEquip or not LP.Character then return end
+    local backpack = LP.Backpack
+    for _, item in pairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            if (getgenv().SelectWeapon == "Melee" and item.ToolTip == "Melee") or
+               (getgenv().SelectWeapon == "Sword" and item.ToolTip == "Sword") or
+               (getgenv().SelectWeapon == "Blox Fruit" and item.ToolTip == "Blox Fruit") then
+                LP.Character.Humanoid:EquipTool(item)
+                break
+            end
+        end
+    end
+end
+
+-- Vòng Lặp Fast Attack (Teddy)
+task.spawn(function()
+    while task.wait() do
+        if getgenv().FastAttack and (getgenv().AutoFarmLevel or getgenv().FastAttack) then
+            pcall(function()
+                local cf = require(LP.PlayerScripts:WaitForChild("CombatFramework"))
+                local res = getupvalues(cf)[2]
+                if res and res.activeController then
+                    res.activeController.hitboxMagnitude = 15
+                    res.activeController.timeToNextAttack = 0
+                    res.activeController:attack()
+                end
+            end)
+        end
+    end
+end)
+
+-- Vòng Lặp Bring Mob (Teddy)
+task.spawn(function()
+    while task.wait(0.5) do
+        if getgenv().BringMob and (getgenv().AutoFarmLevel or getgenv().BringMob) and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                local hrp = LP.Character.HumanoidRootPart
+                for _, mob in pairs(workspace.Enemies:GetChildren()) do
+                    local mHrp, mHum = mob:FindFirstChild("HumanoidRootPart"), mob:FindFirstChild("Humanoid")
+                    if mHrp and mHum and mHum.Health > 0 and (mHrp.Position - hrp.Position).Magnitude <= 350 then
+                        mHrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
+                        mHrp.Size = Vector3.new(30, 30, 30)
+                        mHrp.CanCollide = false
+                        mHum.WalkSpeed = 0
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Vòng Lặp Auto Farm Level Chí Mạng
+task.spawn(function()
+    while task.wait() do
+        if getgenv().AutoFarmLevel and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            pcall(function()
+                EquipWeapon()
+                local hrp = LP.Character.HumanoidRootPart
+                for _, mob in pairs(workspace.Enemies:GetChildren()) do
+                    local mHrp, mHum = mob:FindFirstChild("HumanoidRootPart"), mob:FindFirstChild("Humanoid")
+                    if mHrp and mHum and mHum.Health > 0 then
+                        repeat task.wait()
+                            if getgenv().AutoFarmLevel and mHum.Health > 0 then
+                                hrp.CFrame = mHrp.CFrame * CFrame.new(0, 0, 3)
+                                EquipWeapon()
+                            end
+                        until not getgenv().AutoFarmLevel or not mob or mHum.Health <= 0
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ==========================================
+-- AUTO STATS TAB
+-- ==========================================
+StatTab:CreateSection("Tự Động Cộng Điểm Status")
+
+getgenv().AutoStatMelee = false
+getgenv().AutoStatDefense = false
+getgenv().AutoStatSword = false
+
+StatTab:CreateToggle({
+    Name = "Auto Stat Melee",
+    CurrentValue = false,
+    Callback = function(v) getgenv().AutoStatMelee = v end
+})
+
+StatTab:CreateToggle({
+    Name = "Auto Stat Defense",
+    CurrentValue = false,
+    Callback = function(v) getgenv().AutoStatDefense = v end
+})
+
+StatTab:CreateToggle({
+    Name = "Auto Stat Sword",
+    CurrentValue = false,
+    Callback = function(v) getgenv().AutoStatSword = v end
+})
+
+task.spawn(function()
+    while task.wait(0.2) do
+        pcall(function()
+            if getgenv().AutoStatMelee then
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Melee", 1)
+            end
+            if getgenv().AutoStatDefense then
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Defense", 1)
+            end
+            if getgenv().AutoStatSword then
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Sword", 1)
+            end
+        end)
+    end
+end)
+
+-- ==========================================
+-- FULL ESP SYSTEM
+-- ==========================================
+EspTab:CreateSection("Cấu Hình Nhìn Lén (ESP)")
+
+getgenv().EspPlayer = false
+getgenv().EspMob = false
+getgenv().EspFruit = false
+getgenv().EspChest = false
+
+local function ApplyEsp(obj, color, nameText)
+    if not obj or not obj:IsDescendantOf(workspace) then return end
+    if obj:FindFirstChild("JollibeeEsp") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "JollibeeEsp"
+    highlight.FillColor = color
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.4
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = obj
+    highlight.Parent = obj
+
+    local targetPart = obj:IsA("Model") and (obj:FindFirstChild("Head") or obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart) or obj
+    if targetPart then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "JollibeeEspTag"
+        billboard.Adornee = targetPart
+        billboard.Size = UDim2.new(0, 150, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
+
+        local label = Instance.new("TextLabel")
+        label.Name = "Label"
+        label.Parent = billboard
+        label.BackgroundTransparency = 1
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.TextColor3 = color
+        label.TextSize = 14
+        label.Font = Enum.Font.SourceSansBold
+        label.Text = nameText
+
+        billboard.Parent = obj
+    end
+end
+
+local function RemoveEsp(obj)
+    if obj:FindFirstChild("JollibeeEsp") then obj.JollibeeEsp:Destroy() end
+    if obj:FindFirstChild("JollibeeEspTag") then obj.JollibeeEspTag:Destroy() end
+end
+
+EspTab:CreateToggle({
+    Name = "ESP Player (Người Chơi)",
+    CurrentValue = false,
+    Callback = function(v)
+        getgenv().EspPlayer = v
+        if not v then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character then RemoveEsp(p.Character) end
+            end
+        end
+    end
+})
+
+EspTab:CreateToggle({
+    Name = "ESP Enemies (Quái & Boss)",
+    CurrentValue = false,
+    Callback = function(v)
+        getgenv().EspMob = v
+        if not v then
+            for _, mob in pairs(workspace.Enemies:GetChildren()) do RemoveEsp(mob) end
+        end
+    end
+})
+
+EspTab:CreateToggle({
+    Name = "ESP Devil Fruit (Trái Ác Quỷ)",
+    CurrentValue = false,
+    Callback = function(v)
+        getgenv().EspFruit = v
+        if not v then
+            for _, obj in pairs(workspace:GetChildren()) do
+                if obj.Name:find("Fruit") then RemoveEsp(obj) end
+            end
+        end
+    end
+})
+
+EspTab:CreateToggle({
+    Name = "ESP Chest (Rương Kho Báu)",
+    CurrentValue = false,
+    Callback = function(v)
+        getgenv().EspChest = v
+        if not v then
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj.Name:find("Chest") then RemoveEsp(obj) end
+            end
+        end
+    end
+})
+
+-- Loop ESP General
+task.spawn(function()
+    while task.wait(1) do
+        if getgenv().EspPlayer then
+            pcall(function()
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                        ApplyEsp(p.Character, Color3.fromRGB(0, 255, 128), p.Name)
+                    end
+                end
+            end)
+        end
+        if getgenv().EspMob then
+            pcall(function()
+                for _, mob in pairs(workspace.Enemies:GetChildren()) do
+                    if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                        ApplyEsp(mob, Color3.fromRGB(255, 50, 50), mob.Name)
+                    end
+                end
+            end)
+        end
+        if getgenv().EspFruit then
+            pcall(function()
+                for _, obj in pairs(workspace:GetChildren()) do
+                    if obj:IsA("Tool") or obj.Name:find("Fruit") then
+                        ApplyEsp(obj, Color3.fromRGB(255, 0, 255), "Fruit: " .. obj.Name)
+                    end
+                end
+            end)
+        end
+        if getgenv().EspChest then
+            pcall(function()
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj.Name:find("Chest1") or obj.Name:find("Chest2") or obj.Name:find("Chest3") then
+                        ApplyEsp(obj, Color3.fromRGB(255, 215, 0), "Rương")
+                    end
+                end
+            end)
+        end
+    end
+end)
+
