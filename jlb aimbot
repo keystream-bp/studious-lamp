@@ -1,0 +1,311 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Window = Rayfield:CreateWindow({
+   Name = "FPS Master Hub | Rayfield UI",
+   LoadingTitle = "Đang tải Master Hub...",
+   LoadingSubtitle = "by Assistant",
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = false
+})
+
+-- ==========================================
+-- CÁC TAB CHÍNH
+-- ==========================================
+local AimTab = Window:CreateTab("Aimbot", 4483362458)
+local EspTab = Window:CreateTab("ESP", 4483362458)
+local MiscTab = Window:CreateTab("Misc", 4483362458)
+local InfoTab = Window:CreateTab("Info", 4483362458)
+
+-- ==========================================
+-- AIMBOT SYSTEM
+-- ==========================================
+getgenv().AimScope = false
+getgenv().AimSilent = false
+getgenv().ShowFOV = false
+getgenv().FOVRadius = 100
+getgenv().ShowTracerLine = false
+
+-- Vòng FOV Visual
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Color = Color3.fromRGB(255, 0, 0)
+FOVCircle.Thickness = 1.5
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+
+-- Đường kẻ từ tâm súng đến mục tiêu trong FOV
+local TracerLine = Drawing.new("Line")
+TracerLine.Color = Color3.fromRGB(255, 255, 0)
+TracerLine.Thickness = 1.5
+TracerLine.Transparency = 1
+
+local function GetClosestPlayerInFOV()
+    local closestPlayer = nil
+    local shortestDistance = getgenv().FOVRadius
+    local mousePos = UserInputService:GetMouseLocation()
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local pos, onScreen = Camera:WorldToViewportPoint(player.Character.Head.Position)
+            if onScreen then
+                local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestPlayer = player
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+AimTab:CreateSection("Cấu Hình Aim")
+
+AimTab:CreateToggle({
+   Name = "Aim Scope (Khóa tâm vào Đầu)",
+   CurrentValue = false,
+   Callback = function(Value) getgenv().AimScope = Value end,
+})
+
+AimTab:CreateToggle({
+   Name = "Aim Silent (Tự tìm mục tiêu)",
+   CurrentValue = false,
+   Callback = function(Value) getgenv().AimSilent = Value end,
+})
+
+AimTab:CreateSection("Vòng FOV & Tracer")
+
+AimTab:CreateToggle({
+   Name = "Hiển thị Vòng FOV",
+   CurrentValue = false,
+   Callback = function(Value) getgenv().ShowFOV = Value end,
+})
+
+AimTab:CreateSlider({
+   Name = "Kích thước Vòng FOV",
+   Range = {30, 500},
+   Increment = 5,
+   Suffix = "px",
+   CurrentValue = 100,
+   Callback = function(Value) getgenv().FOVRadius = Value end,
+})
+
+AimTab:CreateToggle({
+   Name = "Đường Kẻ Từ Tâm Đến Mục Tiêu",
+   CurrentValue = false,
+   Callback = function(Value) getgenv().ShowTracerLine = Value end,
+})
+
+-- Loop Xử lý Aimbot & FOV
+RunService.RenderStepped:Connect(function()
+    local mousePos = UserInputService:GetMouseLocation()
+    FOVCircle.Position = mousePos
+    FOVCircle.Radius = getgenv().FOVRadius
+    FOVCircle.Visible = getgenv().ShowFOV
+
+    local target = GetClosestPlayerInFOV()
+
+    if target and target.Character and target.Character:FindFirstChild("Head") then
+        local headPos, _ = Camera:WorldToViewportPoint(target.Character.Head.Position)
+        
+        -- Aim Scope (Giật tâm)
+        if getgenv().AimScope and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+        end
+
+        -- Đường kẻ từ tâm đến mục tiêu
+        if getgenv().ShowTracerLine then
+            TracerLine.From = mousePos
+            TracerLine.To = Vector2.new(headPos.X, headPos.Y)
+            TracerLine.Visible = true
+        else
+            TracerLine.Visible = false
+        end
+    else
+        TracerLine.Visible = false
+    end
+end)
+
+-- Hook Silent Aim (Tối ưu cho hầu hết game Gun/FPS)
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    if getgenv().AimSilent and (method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
+        local target = GetClosestPlayerInFOV()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            -- Bắn lái đạn về đầu mục tiêu
+            return target.Character.Head
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+
+-- ==========================================
+-- ESP SYSTEM
+-- ==========================================
+getgenv().EspBox = false
+getgenv().EspName = false
+getgenv().EspHealth = false
+getgenv().EspSkeleton = false
+getgenv().EspLine = false
+
+EspTab:CreateSection("Tính Năng ESP (Nhìn Xuyên Tường)")
+
+EspTab:CreateToggle({
+   Name = "ESP Box (Hộp)",
+   CurrentValue = false,
+   Callback = function(V) getgenv().EspBox = V end,
+})
+
+EspTab:CreateToggle({
+   Name = "ESP Name (Tên)",
+   CurrentValue = false,
+   Callback = function(V) getgenv().EspName = V end,
+})
+
+EspTab:CreateToggle({
+   Name = "ESP Health (Thanh Máu)",
+   CurrentValue = false,
+   Callback = function(V) getgenv().EspHealth = V end,
+})
+
+EspTab:CreateToggle({
+   Name = "ESP Line (Đường Kẻ Dưới Màn Hình)",
+   CurrentValue = false,
+   Callback = function(V) getgenv().EspLine = V end,
+})
+
+EspTab:CreateToggle({
+   Name = "ESP Bone (Khung Xương)",
+   CurrentValue = false,
+   Callback = function(V) getgenv().EspSkeleton = V end,
+})
+
+-- Hàm tạo ESP tổng hợp
+local function CreateESP(player)
+    local Box = Drawing.new("Square")
+    local Name = Drawing.new("Text")
+    local Health = Drawing.new("Text")
+    local Line = Drawing.new("Line")
+
+    RunService.RenderStepped:Connect(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 and player ~= LocalPlayer then
+            local hrp = player.Character.HumanoidRootPart
+            local head = player.Character:FindFirstChild("Head")
+            
+            if head then
+                local hrpPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+
+                if onScreen then
+                    local height = headPos.Y - legPos.Y
+                    local width = height / 2
+
+                    -- Box
+                    Box.Visible = getgenv().EspBox
+                    Box.Size = Vector2.new(width, height)
+                    Box.Position = Vector2.new(hrpPos.X - width / 2, hrpPos.Y - height / 2)
+                    Box.Color = Color3.fromRGB(255, 255, 255)
+
+                    -- Name
+                    Name.Visible = getgenv().EspName
+                    Name.Text = player.Name
+                    Name.Position = Vector2.new(hrpPos.X, hrpPos.Y - height / 2 - 15)
+                    Name.Center = true
+                    Name.Color = Color3.fromRGB(255, 255, 255)
+
+                    -- Health
+                    Health.Visible = getgenv().EspHealth
+                    Health.Text = "HP: " .. math.floor(player.Character.Humanoid.Health)
+                    Health.Position = Vector2.new(hrpPos.X, hrpPos.Y + height / 2 + 5)
+                    Health.Center = true
+                    Health.Color = Color3.fromRGB(0, 255, 100)
+
+                    -- Line
+                    Line.Visible = getgenv().EspLine
+                    Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    Line.To = Vector2.new(hrpPos.X, hrpPos.Y)
+                    Line.Color = Color3.fromRGB(255, 255, 255)
+
+                    return
+                end
+            end
+        end
+        Box.Visible = false
+        Name.Visible = false
+        Health.Visible = false
+        Line.Visible = false
+    end)
+end
+
+for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
+Players.PlayerAdded:Connect(CreateESP)
+
+-- ==========================================
+-- MISC TAB
+-- ==========================================
+MiscTab:CreateSection("Tính Năng Mở Rộng")
+
+getgenv().FastShoot = false
+MiscTab:CreateToggle({
+   Name = "Bắn Nhanh (Fast Shoot / No Recoil)",
+   CurrentValue = false,
+   Callback = function(Value)
+      getgenv().FastShoot = Value
+   end,
+})
+
+MiscTab:CreateButton({
+   Name = "Tàng Hình (Invisibility - Local Client)",
+   Callback = function()
+      if LocalPlayer.Character then
+          for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+              if part:IsA("BasePart") or part:IsA("Decal") then
+                  part.Transparency = 1
+              end
+          end
+          Rayfield:Notify({Title = "Tàng Hình", Content = "Đã ẩn thân khỏi tầm nhìn client!", Duration = 2})
+      end
+   end,
+})
+
+-- Loop Fast Shoot
+task.spawn(function()
+    while task.wait() do
+        if getgenv().FastShoot then
+            pcall(function()
+                local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                if tool then
+                    tool:Activate()
+                end
+            end)
+        end
+    end
+end)
+
+-- ==========================================
+-- INFO TAB
+-- ==========================================
+InfoTab:CreateSection("Hồ Sơ Người Chơi")
+
+InfoTab:CreateLabel("Tên Tài Khoản: " .. LocalPlayer.Name)
+InfoTab:CreateLabel("Tên Hiển Thị: " .. LocalPlayer.DisplayName)
+InfoTab:CreateLabel("ID Người Chơi: " .. LocalPlayer.UserId)
+
+InfoTab:CreateSection("Thời Gian Hệ Thống")
+local TimeLabel = InfoTab:CreateLabel("Thời Gian: Đang tải...")
+
+-- Cập nhật ngày giờ thời gian thực
+task.spawn(function()
+    while task.wait(1) do
+        local date = os.date("*t")
+        local formattedTime = string.format("Ngày %02d/%02d/%04d - %02d:%02d:%02d", date.day, date.month, date.year, date.hour, date.min, date.sec)
+        TimeLabel:Set("Thời Gian Realtime: " .. formattedTime)
+    end
+end)
+        
