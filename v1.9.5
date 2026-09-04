@@ -31,7 +31,6 @@ local AutoStatsMelee, AutoStatsDefense, AutoStatsSword, AutoStatsFruit = false, 
 local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, WalkOnWater, SpeedHack, WalkSpeedValue, InfJump = false, false, false, false, false, false, false, 32, false
 local CurTween, CurPos, WaterPart
 
--- Bảng ghi nhớ rương đã nhặt
 local CollectedChests = {}
 
 local Quests = {
@@ -46,16 +45,23 @@ local Quests = {
 local function GetLvl(p) local target, lvl = p or LP, 1 pcall(function() lvl = target:FindFirstChild("Data") and target.Data.Level.Value or target.Level.Value end) return lvl end
 local function GetQ() local l, c = GetLvl(), Quests[1] for _, q in ipairs(Quests) do if l >= q[1] then c = q end end return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]} end
 
+-- Hàm bay mượt (Không đứng im, giữ dáng nghiêng chuẩn bay)
 local function FlyTo(targetCF, speed)
-    speed = speed or 250
+    speed = speed or 230
     local chr = LP.Character
     local hrp, hum = chr and chr:FindFirstChild("HumanoidRootPart"), chr and chr:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
+    
     hrp.Velocity = Vector3.zero
+    hum.PlatformStand = false -- Đảm bảo không bị đứng im đơ dáng
+    
     local dist = (hrp.Position - targetCF.Position).Magnitude
     if dist > 6 then
-        hum.PlatformStand = true
-        for _, v in pairs(chr:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end
+        for _, v in pairs(chr:GetChildren()) do 
+            if v:IsA("BasePart") then 
+                v.CanCollide = false 
+            end 
+        end
         if not CurPos or (CurPos - targetCF.Position).Magnitude > 3 then
             CurPos = targetCF.Position
             if CurTween then CurTween:Cancel() end
@@ -64,7 +70,7 @@ local function FlyTo(targetCF, speed)
         end
     else
         if CurTween then CurTween:Cancel(); CurTween = nil end
-        CurPos, hrp.CFrame, hum.PlatformStand = nil, targetCF, false
+        CurPos, hrp.CFrame = nil, targetCF
     end
 end
 
@@ -79,7 +85,7 @@ local function StopFly()
     end
 end
 
--- Vòng lặp Auto Nhặt Rương Full Map (Không nhặt lại rương cũ)
+-- Vòng lặp Nhặt Rương Mượt (Tốc độ 230 mượt mà không delay/kick)
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -92,7 +98,6 @@ task.spawn(function()
                 local shortestDist = math.huge
                 
                 for _, v in pairs(workspace:GetDescendants()) do
-                    -- Kiểm tra xem vật thể có phải rương không và CHƯA nằm trong danh sách đã nhặt
                     if v:IsA("Part") and v.Name:find("Chest") and v:IsDescendantOf(workspace) and not CollectedChests[v] then
                         local dist = (v.Position - hrp.Position).Magnitude
                         if dist < shortestDist then
@@ -104,15 +109,14 @@ task.spawn(function()
 
                 if closestChest and closestChest.Parent then
                     if shortestDist > 5 then
-                        FlyTo(closestChest.CFrame, 300)
+                        FlyTo(closestChest.CFrame, 230)
                     else
                         StopFly()
                         hrp.CFrame = closestChest.CFrame
                         firetouchinterest(hrp, closestChest, 0)
-                        task.wait(0.05)
+                        task.wait(0.08)
                         firetouchinterest(hrp, closestChest, 1)
                         
-                        -- Đánh dấu rương đã nhặt thành công
                         CollectedChests[closestChest] = true
                         task.wait(0.1)
                     end
@@ -299,7 +303,7 @@ local function TeleportToFruit()
                 table.sort(fruits, function(a, b) return (a.Part.Position - myHrp.Position).Magnitude < (b.Part.Position - myHrp.Position).Magnitude end)
                 local target = fruits[1]
                 task.spawn(function()
-                    while target.Part and target.Part.Parent and (target.Part.Position - myHrp.Position).Magnitude > 5 do FlyTo(target.Part.CFrame, 300) task.wait(0.05) end
+                    while target.Part and target.Part.Parent and (target.Part.Position - myHrp.Position).Magnitude > 5 do FlyTo(target.Part.CFrame, 250) task.wait(0.05) end
                     StopFly()
                     if target.Part and target.Part.Parent then myHrp.CFrame = target.Part.CFrame firetouchinterest(myHrp, target.Part, 0) task.wait(0.1) firetouchinterest(myHrp, target.Part, 1) end
                 end)
