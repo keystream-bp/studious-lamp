@@ -28,9 +28,9 @@ end)
 local AutoFarm, BringMob, FastAttack, FastDistance, AutoBones, AutoKatakuri, AutoBoss = false, false, false, false, false, false, false
 local AutoChestFullMap = false
 local AutoStatsMelee, AutoStatsDefense, AutoStatsSword, AutoStatsFruit = false, false, false, false
-local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, WalkOnWater, SpeedHack, WalkSpeedValue, InfJump = false, false, false, false, false, false, false, 32, false
+local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, ESPIsland = false, false, false, false, false, false
+local WalkOnWater, SpeedHack, WalkSpeedValue, InfJump = false, false, 32, false
 local CurTween, CurPos, WaterPart
-
 local CollectedChests = {}
 
 local Quests = {
@@ -45,7 +45,6 @@ local Quests = {
 local function GetLvl(p) local target, lvl = p or LP, 1 pcall(function() lvl = target:FindFirstChild("Data") and target.Data.Level.Value or target.Level.Value end) return lvl end
 local function GetQ() local l, c = GetLvl(), Quests[1] for _, q in ipairs(Quests) do if l >= q[1] then c = q end end return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]} end
 
--- Hàm bay mượt (Không đứng im, giữ dáng nghiêng chuẩn bay)
 local function FlyTo(targetCF, speed)
     speed = speed or 230
     local chr = LP.Character
@@ -53,15 +52,11 @@ local function FlyTo(targetCF, speed)
     if not hrp or not hum then return end
     
     hrp.Velocity = Vector3.zero
-    hum.PlatformStand = false -- Đảm bảo không bị đứng im đơ dáng
+    hum.PlatformStand = false
     
     local dist = (hrp.Position - targetCF.Position).Magnitude
     if dist > 6 then
-        for _, v in pairs(chr:GetChildren()) do 
-            if v:IsA("BasePart") then 
-                v.CanCollide = false 
-            end 
-        end
+        for _, v in pairs(chr:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end
         if not CurPos or (CurPos - targetCF.Position).Magnitude > 3 then
             CurPos = targetCF.Position
             if CurTween then CurTween:Cancel() end
@@ -85,7 +80,7 @@ local function StopFly()
     end
 end
 
--- Vòng lặp Nhặt Rương Mượt (Tốc độ 230 mượt mà không delay/kick)
+-- Auto Chest
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -94,9 +89,7 @@ task.spawn(function()
                 local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
                 
-                local closestChest = nil
-                local shortestDist = math.huge
-                
+                local closestChest, shortestDist = nil, math.huge
                 for _, v in pairs(workspace:GetDescendants()) do
                     if v:IsA("Part") and v.Name:find("Chest") and v:IsDescendantOf(workspace) and not CollectedChests[v] then
                         local dist = (v.Position - hrp.Position).Magnitude
@@ -116,7 +109,6 @@ task.spawn(function()
                         firetouchinterest(hrp, closestChest, 0)
                         task.wait(0.08)
                         firetouchinterest(hrp, closestChest, 1)
-                        
                         CollectedChests[closestChest] = true
                         task.wait(0.1)
                     end
@@ -128,7 +120,7 @@ task.spawn(function()
     end
 end)
 
--- Vòng lặp Tấn công
+-- Auto Attack
 task.spawn(function()
     while true do
         if AutoFarm or AutoBones or AutoKatakuri or AutoBoss then
@@ -160,7 +152,7 @@ task.spawn(function()
     end
 end)
 
--- Logic Auto Farm Level
+-- Auto Farm Level
 RSvc.Heartbeat:Connect(function()
     if AutoFarm then
         pcall(function()
@@ -180,9 +172,7 @@ RSvc.Heartbeat:Connect(function()
                     RS.Remotes.CommF_:InvokeServer("StartQuest", q.QName, q.QNum) 
                 end
             else
-                local targetMob = nil
-                local shortestDist = math.huge
-                
+                local targetMob, shortestDist = nil, math.huge
                 if workspace:FindFirstChild("Enemies") then
                     for _, v in pairs(workspace.Enemies:GetChildren()) do
                         if (v.Name == q.MName or v.Name:find(q.MName)) and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
@@ -217,7 +207,7 @@ RSvc.Heartbeat:Connect(function()
     end
 end)
 
--- Auto Add Stats
+-- Auto Stats
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -229,7 +219,11 @@ task.spawn(function()
     end
 end)
 
--- ESP System
+----------------------------------------------------
+-- SYSTEM ESP NÂNG CẤP (PLAYER / FRUIT / ISLAND)
+----------------------------------------------------
+
+-- ESP Người chơi
 local ESP_Cache = {}
 local function CreateESP(plr)
     if plr == LP or ESP_Cache[plr] then return end
@@ -265,6 +259,7 @@ RSvc.RenderStepped:Connect(function()
     end
 end)
 
+-- ESP Trái Ác Quỷ
 RSvc.RenderStepped:Connect(function()
     pcall(function()
         local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -282,6 +277,36 @@ RSvc.RenderStepped:Connect(function()
                         end
                         bg.Txt.Text, bg.Enabled = "🍎 " .. v.Name .. (myHrp and (" [" .. math.floor((handle.Position - myHrp.Position).Magnitude) .. "m]") or ""), true
                     elseif bg then bg.Enabled = false end
+                end
+            end
+        end
+    end)
+end)
+
+-- ESP Đảo (Islands)
+local IslandFolder = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Locations") or workspace
+RSvc.RenderStepped:Connect(function()
+    pcall(function()
+        local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if not myHrp then return end
+        
+        for _, loc in pairs(IslandFolder:GetChildren()) do
+            if loc:IsA("Model") or loc:IsA("Part") then
+                local targetPart = loc:IsA("Model") and (loc.PrimaryPart or loc:FindFirstChildWhichIsA("BasePart")) or loc
+                if targetPart and loc.Name ~= "Water" and loc.Name ~= "Ocean" then
+                    local bg = targetPart:FindFirstChild("IslandESP")
+                    if ESPIsland then
+                        if not bg then
+                            bg = Instance.new("BillboardGui", targetPart)
+                            bg.Name, bg.Size, bg.AlwaysOnTop, bg.StudsOffset = "IslandESP", UDim2.new(0, 250, 0, 50), true, Vector3.new(0, 10, 0)
+                            local txt = Instance.new("TextLabel", bg)
+                            txt.Name, txt.Size, txt.BackgroundTransparency, txt.TextColor3, txt.TextSize, txt.Font, txt.TextStrokeTransparency = "Txt", UDim2.new(1, 0, 1, 0), 1, Color3.fromRGB(0, 255, 127), 15, Enum.Font.SourceSansBold, 0
+                        end
+                        local dist = math.floor((targetPart.Position - myHrp.Position).Magnitude)
+                        bg.Txt.Text, bg.Enabled = "🏝️ " .. loc.Name .. "\n[" .. dist .. "m]", true
+                    elseif bg then
+                        bg.Enabled = false
+                    end
                 end
             end
         end
@@ -340,10 +365,10 @@ local Window = Rayfield:CreateWindow({
 
 local TabMainFarm = Window:CreateTab("Chức Năng Farm", 4483362458)
 local TabFruit = Window:CreateTab("Fruit System", 4483362458)
-local TabESP = Window:CreateTab("ESP Player", 4483362458)
+local TabESP = Window:CreateTab("ESP Hub", 4483362458)
 local TabMisc = Window:CreateTab("Misc", 4483362458)
 
--- Tab Chức Năng Farm -> Section 1: Farm Level
+-- Tab Chức Năng Farm
 TabMainFarm:CreateSection("Farm Cấp Độ")
 TabMainFarm:CreateToggle({
    Name = "Auto Farm Level",
@@ -366,7 +391,6 @@ TabMainFarm:CreateToggle({
    Callback = function(v) FastDistance = v end,
 })
 
--- Tab Chức Năng Farm -> Section 2: Farm Khác
 TabMainFarm:CreateSection("Farm Nâng Cao")
 TabMainFarm:CreateToggle({
    Name = "Auto Farm Rương (Full Map)",
@@ -389,12 +413,11 @@ TabMainFarm:CreateToggle({
    Callback = function(v) AutoBoss = v end,
 })
 
--- Tab Chức Năng Farm -> Section 3: Auto Stats
 TabMainFarm:CreateSection("Auto Stats")
 TabMainFarm:CreateToggle({
    Name = "Tự Động Cộng Melee",
    CurrentValue = false,
-   Callback = function(v) AutoStatsMelee = v end,
+ Callback = function(v) AutoStatsMelee = v end,
 })
 TabMainFarm:CreateToggle({
    Name = "Tự Động Cộng Defense",
@@ -413,12 +436,7 @@ TabMainFarm:CreateToggle({
 })
 
 -- Tab Fruit
-TabFruit:CreateSection("Trái Ác Quỷ")
-TabFruit:CreateToggle({
-   Name = "ESP Trái Ác Quỷ",
-   CurrentValue = false,
-   Callback = function(v) ESPFruit = v end,
-})
+TabFruit:CreateSection("Tính Năng Trái Ác Quỷ")
 TabFruit:CreateButton({
    Name = "🚀 Bay Đến Nhặt Trái",
    Callback = TeleportToFruit,
@@ -428,15 +446,17 @@ TabFruit:CreateButton({
    Callback = function() RS.Remotes.CommF_:InvokeServer("Cousin", "Buy") end,
 })
 
--- Tab ESP
-TabESP:CreateSection("ESP Player")
+----------------------------------------------------
+-- TAB ESP (TÁCH RIÊNG PLAYER / FRUIT / ISLAND)
+----------------------------------------------------
+TabESP:CreateSection("👤 ESP Người Chơi")
 TabESP:CreateToggle({
-   Name = "ESP Box",
+   Name = "ESP Box (Khung)",
    CurrentValue = false,
    Callback = function(v) ESPBox = v end,
 })
 TabESP:CreateToggle({
-   Name = "ESP Tên",
+   Name = "ESP Tên Người Chơi",
    CurrentValue = false,
    Callback = function(v) ESPName = v end,
 })
@@ -446,20 +466,34 @@ TabESP:CreateToggle({
    Callback = function(v) ESPDist = v end,
 })
 TabESP:CreateToggle({
-   Name = "ESP Đường Kẻ",
+   Name = "ESP Đường Kẻ (Line)",
    CurrentValue = false,
    Callback = function(v) ESPLine = v end,
 })
 
+TabESP:CreateSection("🍎 ESP Trái Ác Quỷ")
+TabESP:CreateToggle({
+   Name = "Hiển Thị Trái Ác Quỷ",
+   CurrentValue = false,
+   Callback = function(v) ESPFruit = v end,
+})
+
+TabESP:CreateSection("🏝️ ESP Đảo (Islands)")
+TabESP:CreateToggle({
+   Name = "Hiển Thị Vị Trí Các Đảo",
+   CurrentValue = false,
+   Callback = function(v) ESPIsland = v end,
+})
+
 -- Tab Misc
-TabMisc:CreateSection("Tiện Ích")
+TabMisc:CreateSection("Tiện Ích Nhân Vật")
 TabMisc:CreateToggle({
    Name = "Hack Tốc Độ",
    CurrentValue = false,
    Callback = function(v) SpeedHack = v end,
 })
 TabMisc:CreateSlider({
-   Name = "Tốc Độ",
+   Name = "Tốc Độ Di Chuyển",
    Range = {16, 300},
    Increment = 1,
    Suffix = " Speed",
