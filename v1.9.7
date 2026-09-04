@@ -25,7 +25,7 @@ LP.Idled:Connect(function()
     bb:ClickButton2(Vector2.new())
 end)
 
-local AutoFarm, BringMob, FastAttack, FastDistance, AutoBones, AutoKatakuri, AutoBoss = false, false, false, false, false, false, false
+local AutoFarm, BringMob, FastAttack, FastDistance = false, true, true, true
 local AutoChestFullMap = false
 local AutoStatsMelee, AutoStatsDefense, AutoStatsSword, AutoStatsFruit = false, false, false, false
 local ESPBox, ESPName, ESPDist, ESPLine, ESPFruit, ESPIsland = false, false, false, false, false, false
@@ -33,6 +33,7 @@ local WalkOnWater, SpeedHack, WalkSpeedValue, InfJump = false, false, 32, false
 local CurTween, CurPos, WaterPart
 local CollectedChests = {}
 
+-- Bảng Quests chuẩn Open Source
 local Quests = {
     {1, "BanditQuest1", 1, "Bandit", CFrame.new(1059, 16, 1549), CFrame.new(1145, 16, 1630)},
     {10, "JungleQuest", 1, "Monkey", CFrame.new(-1598, 36, 153), CFrame.new(-1448, 50, 63)},
@@ -42,9 +43,19 @@ local Quests = {
     {90, "SnowQuest", 1, "Snow Bandit", CFrame.new(1385, 87, -1298), CFrame.new(1300, 87, -1350)}
 }
 
-local function GetLvl(p) local target, lvl = p or LP, 1 pcall(function() lvl = target:FindFirstChild("Data") and target.Data.Level.Value or target.Level.Value end) return lvl end
-local function GetQ() local l, c = GetLvl(), Quests[1] for _, q in ipairs(Quests) do if l >= q[1] then c = q end end return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]} end
+local function GetLvl(p)
+    local target, lvl = p or LP, 1
+    pcall(function() lvl = target:FindFirstChild("Data") and target.Data.Level.Value or target.Level.Value end)
+    return lvl
+end
 
+local function GetQ()
+    local l, c = GetLvl(), Quests[1]
+    for _, q in ipairs(Quests) do if l >= q[1] then c = q end end
+    return {QName = c[2], QNum = c[3], MName = c[4], Npc = c[5], Mob = c[6]}
+end
+
+-- Hàm bay mượt giữ dáng nhân vật
 local function FlyTo(targetCF, speed)
     speed = speed or 230
     local chr = LP.Character
@@ -80,7 +91,95 @@ local function StopFly()
     end
 end
 
--- Auto Chest
+-- Vòng lặp Auto Farm từ Open Source
+RSvc.Heartbeat:Connect(function()
+    if AutoFarm then
+        pcall(function()
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            hrp.Velocity = Vector3.zero
+            
+            local q = GetQ()
+            local qGui = LP.PlayerGui.Main:FindFirstChild("Quest")
+            local hasQ = qGui and qGui.Visible and qGui.Container.QuestTitle.Title.Text ~= ""
+            
+            if not hasQ then
+                if (hrp.Position - q.Npc.Position).Magnitude > 12 then 
+                    FlyTo(q.Npc, 250)
+                else 
+                    StopFly()
+                    hrp.CFrame = q.Npc 
+                    RS.Remotes.CommF_:InvokeServer("StartQuest", q.QName, q.QNum) 
+                end
+            else
+                local targetMob = nil
+                local shortestDist = math.huge
+                
+                if workspace:FindFirstChild("Enemies") then
+                    for _, v in pairs(workspace.Enemies:GetChildren()) do
+                        if (v.Name == q.MName or v.Name:find(q.MName)) and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
+                            local d = (v.HumanoidRootPart.Position - hrp.Position).Magnitude
+                            if d < shortestDist then
+                                shortestDist = d
+                                targetMob = v
+                            end
+                        end
+                    end
+                end
+                
+                if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+                    StopFly()
+                    local mHrp = targetMob.HumanoidRootPart
+                    hrp.CFrame = CFrame.new(mHrp.Position + Vector3.new(0, 11, 0), mHrp.Position)
+                    
+                    -- Thuật toán Bring Mob (Gom quái)
+                    if BringMob and workspace:FindFirstChild("Enemies") then
+                        for _, om in pairs(workspace.Enemies:GetChildren()) do
+                            if (om.Name == q.MName or om.Name:find(q.MName)) and om:FindFirstChild("HumanoidRootPart") and om:FindFirstChild("Humanoid") and om.Humanoid.Health > 0 then
+                                if (om.HumanoidRootPart.Position - mHrp.Position).Magnitude < 280 then
+                                    om.HumanoidRootPart.CFrame = mHrp.CFrame
+                                    om.HumanoidRootPart.CanCollide = false
+                                end
+                            end
+                        end
+                    end
+                else
+                    FlyTo(q.Mob, 250)
+                end
+            end
+        end)
+    end
+end)
+
+-- Fast Attack Loop
+task.spawn(function()
+    while true do
+        if AutoFarm then
+            pcall(function()
+                local chr = LP.Character
+                if chr and chr:FindFirstChild("Humanoid") and chr.Humanoid.Health > 0 then
+                    local tool = chr:FindFirstChildOfClass("Tool")
+                    if not tool then
+                        for _, t in pairs(LP.Backpack:GetChildren()) do
+                            if t:IsA("Tool") and t.ToolTip ~= "Gun" then 
+                                chr.Humanoid:EquipTool(t) 
+                                break 
+                            end 
+                        end
+                    else
+                        tool:Activate()
+                        if RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net") then
+                            pcall(function() RS.Modules.Net:FindFirstChild("RegisterAttack"):InvokeServer() end)
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(FastAttack and 0.015 or 0.2)
+    end
+end)
+
+-- Auto Chest Loop
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -120,110 +219,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Attack
-task.spawn(function()
-    while true do
-        if AutoFarm or AutoBones or AutoKatakuri or AutoBoss then
-            pcall(function()
-                local chr = LP.Character
-                if chr and chr:FindFirstChild("Humanoid") and chr.Humanoid.Health > 0 then
-                    local tool = chr:FindFirstChildOfClass("Tool")
-                    if not tool then
-                        for _, t in pairs(LP.Backpack:GetChildren()) do
-                            if t:IsA("Tool") and t.ToolTip ~= "Gun" then 
-                                chr.Humanoid:EquipTool(t) 
-                                break 
-                            end 
-                        end
-                    else
-                        tool:Activate()
-                        if RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net") then
-                            pcall(function() RS.Modules.Net:FindFirstChild("RegisterAttack"):InvokeServer() end)
-                        end
-                        if FastDistance and tool:FindFirstChild("Handle") then 
-                            tool.Handle.Size = Vector3.new(50, 50, 50)
-                            tool.Handle.CanCollide = false 
-                        end
-                    end
-                end
-            end)
-        end
-        task.wait(FastAttack and 0.015 or 0.2)
-    end
-end)
-
--- Auto Farm Level
-RSvc.Heartbeat:Connect(function()
-    if AutoFarm then
-        pcall(function()
-            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            hrp.Velocity = Vector3.zero
-            
-            local q, qGui = GetQ(), LP.PlayerGui.Main:FindFirstChild("Quest")
-            local hasQ = qGui and qGui.Visible and qGui.Container.QuestTitle.Title.Text ~= ""
-            
-            if not hasQ then
-                if (hrp.Position - q.Npc.Position).Magnitude > 10 then 
-                    FlyTo(q.Npc, 250)
-                else 
-                    StopFly()
-                    hrp.CFrame = q.Npc 
-                    RS.Remotes.CommF_:InvokeServer("StartQuest", q.QName, q.QNum) 
-                end
-            else
-                local targetMob, shortestDist = nil, math.huge
-                if workspace:FindFirstChild("Enemies") then
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if (v.Name == q.MName or v.Name:find(q.MName)) and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
-                            local d = (v.HumanoidRootPart.Position - hrp.Position).Magnitude
-                            if d < shortestDist then
-                                shortestDist = d
-                                targetMob = v
-                            end
-                        end
-                    end
-                end
-                
-                if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                    StopFly()
-                    local mHrp = targetMob.HumanoidRootPart
-                    hrp.CFrame = CFrame.new(mHrp.Position + Vector3.new(0, 10, 0), mHrp.Position)
-                    if BringMob and workspace:FindFirstChild("Enemies") then
-                        for _, om in pairs(workspace.Enemies:GetChildren()) do
-                            if (om.Name == q.MName or om.Name:find(q.MName)) and om:FindFirstChild("HumanoidRootPart") and om:FindFirstChild("Humanoid") and om.Humanoid.Health > 0 then
-                                if (om.HumanoidRootPart.Position - mHrp.Position).Magnitude < 250 then
-                                    om.HumanoidRootPart.CFrame = mHrp.CFrame
-                                    om.HumanoidRootPart.CanCollide = false
-                                end
-                            end
-                        end
-                    end
-                else
-                    FlyTo(q.Mob, 250)
-                end
-            end
-        end)
-    end
-end)
-
--- Auto Stats
-task.spawn(function()
-    while task.wait(0.5) do
-        pcall(function()
-            if AutoStatsMelee then RS.Remotes.CommF_:InvokeServer("AddPoint", "Melee", 3) end
-            if AutoStatsDefense then RS.Remotes.CommF_:InvokeServer("AddPoint", "Defense", 3) end
-            if AutoStatsSword then RS.Remotes.CommF_:InvokeServer("AddPoint", "Sword", 3) end
-            if AutoStatsFruit then RS.Remotes.CommF_:InvokeServer("AddPoint", "Demon Fruit", 3) end
-        end)
-    end
-end)
-
-----------------------------------------------------
--- SYSTEM ESP NÂNG CẤP (PLAYER / FRUIT / ISLAND)
-----------------------------------------------------
-
--- ESP Người chơi
+-- ESP Systems
 local ESP_Cache = {}
 local function CreateESP(plr)
     if plr == LP or ESP_Cache[plr] then return end
@@ -259,7 +255,7 @@ RSvc.RenderStepped:Connect(function()
     end
 end)
 
--- ESP Trái Ác Quỷ
+-- ESP Fruit
 RSvc.RenderStepped:Connect(function()
     pcall(function()
         local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -283,13 +279,12 @@ RSvc.RenderStepped:Connect(function()
     end)
 end)
 
--- ESP Đảo (Islands)
+-- ESP Đảo
 local IslandFolder = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Locations") or workspace
 RSvc.RenderStepped:Connect(function()
     pcall(function()
         local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if not myHrp then return end
-        
         for _, loc in pairs(IslandFolder:GetChildren()) do
             if loc:IsA("Model") or loc:IsA("Part") then
                 local targetPart = loc:IsA("Model") and (loc.PrimaryPart or loc:FindFirstChildWhichIsA("BasePart")) or loc
@@ -304,55 +299,12 @@ RSvc.RenderStepped:Connect(function()
                         end
                         local dist = math.floor((targetPart.Position - myHrp.Position).Magnitude)
                         bg.Txt.Text, bg.Enabled = "🏝️ " .. loc.Name .. "\n[" .. dist .. "m]", true
-                    elseif bg then
-                        bg.Enabled = false
-                    end
+                    elseif bg then bg.Enabled = false end
                 end
             end
         end
     end)
 end)
-
-local function TeleportToFruit()
-    pcall(function()
-        local fruits = {}
-        for _, v in pairs(workspace:GetChildren()) do
-            if v:IsA("Tool") or v.Name:find("Fruit") then
-                local handle = v:FindFirstChild("Handle") or v:FindFirstChildWhichIsA("BasePart")
-                if handle then table.insert(fruits, {Tool = v, Part = handle}) end
-            end
-        end
-        if #fruits > 0 then
-            local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            if myHrp then
-                table.sort(fruits, function(a, b) return (a.Part.Position - myHrp.Position).Magnitude < (b.Part.Position - myHrp.Position).Magnitude end)
-                local target = fruits[1]
-                task.spawn(function()
-                    while target.Part and target.Part.Parent and (target.Part.Position - myHrp.Position).Magnitude > 5 do FlyTo(target.Part.CFrame, 250) task.wait(0.05) end
-                    StopFly()
-                    if target.Part and target.Part.Parent then myHrp.CFrame = target.Part.CFrame firetouchinterest(myHrp, target.Part, 0) task.wait(0.1) firetouchinterest(myHrp, target.Part, 1) end
-                end)
-            end
-        end
-    end)
-end
-
-RSvc.RenderStepped:Connect(function()
-    pcall(function()
-        local chr = LP.Character
-        local hum, hrp = chr and chr:FindFirstChildOfClass("Humanoid"), chr and chr:FindFirstChild("HumanoidRootPart")
-        if SpeedHack and hum then hum.WalkSpeed = WalkSpeedValue end
-        if WalkOnWater and hrp then
-            if not WaterPart or not WaterPart.Parent then
-                WaterPart = Instance.new("Part", workspace)
-                WaterPart.Name, WaterPart.Size, WaterPart.Anchored, WaterPart.Transparency, WaterPart.Color = "WaterPlatform", Vector3.new(300, 1, 300), true, 0.5, Color3.fromRGB(0, 170, 255)
-            end
-            WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z)
-        elseif WaterPart then WaterPart:Destroy(); WaterPart = nil end
-    end)
-end)
-
-UIS.JumpRequest:Connect(function() if InfJump then local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid") if hum then hum:ChangeState("Jumping") end end end)
 
 -- Rayfield UI Setup
 local Window = Rayfield:CreateWindow({
@@ -364,12 +316,11 @@ local Window = Rayfield:CreateWindow({
 })
 
 local TabMainFarm = Window:CreateTab("Chức Năng Farm", 4483362458)
-local TabFruit = Window:CreateTab("Fruit System", 4483362458)
 local TabESP = Window:CreateTab("ESP Hub", 4483362458)
 local TabMisc = Window:CreateTab("Misc", 4483362458)
 
--- Tab Chức Năng Farm
-TabMainFarm:CreateSection("Farm Cấp Độ")
+-- Tab Farm
+TabMainFarm:CreateSection("Auto Farm Level")
 TabMainFarm:CreateToggle({
    Name = "Auto Farm Level",
    CurrentValue = false,
@@ -377,136 +328,35 @@ TabMainFarm:CreateToggle({
 })
 TabMainFarm:CreateToggle({
    Name = "Gom Quái (Bring Mob)",
-   CurrentValue = false,
+   CurrentValue = true,
    Callback = function(v) BringMob = v end,
 })
 TabMainFarm:CreateToggle({
    Name = "Đánh Nhanh (Fast Attack)",
-   CurrentValue = false,
+   CurrentValue = true,
    Callback = function(v) FastAttack = v end,
 })
-TabMainFarm:CreateToggle({
-   Name = "Mở Rộng Hitbox",
-   CurrentValue = false,
-   Callback = function(v) FastDistance = v end,
-})
-
-TabMainFarm:CreateSection("Farm Nâng Cao")
 TabMainFarm:CreateToggle({
    Name = "Auto Farm Rương (Full Map)",
    CurrentValue = false,
    Callback = function(v) AutoChestFullMap = v if not v then StopFly() end end,
 })
-TabMainFarm:CreateToggle({
-   Name = "Auto Farm Xương",
-   CurrentValue = false,
-   Callback = function(v) AutoBones = v end,
-})
-TabMainFarm:CreateToggle({
-   Name = "Auto Katakuri",
-   CurrentValue = false,
-   Callback = function(v) AutoKatakuri = v end,
-})
-TabMainFarm:CreateToggle({
-   Name = "Auto Farm Boss",
-   CurrentValue = false,
-   Callback = function(v) AutoBoss = v end,
-})
 
-TabMainFarm:CreateSection("Auto Stats")
-TabMainFarm:CreateToggle({
-   Name = "Tự Động Cộng Melee",
-   CurrentValue = false,
- Callback = function(v) AutoStatsMelee = v end,
-})
-TabMainFarm:CreateToggle({
-   Name = "Tự Động Cộng Defense",
-   CurrentValue = false,
-   Callback = function(v) AutoStatsDefense = v end,
-})
-TabMainFarm:CreateToggle({
-   Name = "Tự Động Cộng Sword",
-   CurrentValue = false,
-   Callback = function(v) AutoStatsSword = v end,
-})
-TabMainFarm:CreateToggle({
-   Name = "Tự Động Cộng Demon Fruit",
-   CurrentValue = false,
-   Callback = function(v) AutoStatsFruit = v end,
-})
-
--- Tab Fruit
-TabFruit:CreateSection("Tính Năng Trái Ác Quỷ")
-TabFruit:CreateButton({
-   Name = "🚀 Bay Đến Nhặt Trái",
-   Callback = TeleportToFruit,
-})
-TabFruit:CreateButton({
-   Name = "🎰 Random Trái",
-   Callback = function() RS.Remotes.CommF_:InvokeServer("Cousin", "Buy") end,
-})
-
-----------------------------------------------------
--- TAB ESP (TÁCH RIÊNG PLAYER / FRUIT / ISLAND)
-----------------------------------------------------
+-- Tab ESP
 TabESP:CreateSection("👤 ESP Người Chơi")
-TabESP:CreateToggle({
-   Name = "ESP Box (Khung)",
-   CurrentValue = false,
-   Callback = function(v) ESPBox = v end,
-})
-TabESP:CreateToggle({
-   Name = "ESP Tên Người Chơi",
-   CurrentValue = false,
-   Callback = function(v) ESPName = v end,
-})
-TabESP:CreateToggle({
-   Name = "ESP Khoảng Cách",
-   CurrentValue = false,
-   Callback = function(v) ESPDist = v end,
-})
-TabESP:CreateToggle({
-   Name = "ESP Đường Kẻ (Line)",
-   CurrentValue = false,
-   Callback = function(v) ESPLine = v end,
-})
+TabESP:CreateToggle({ Name = "ESP Box", CurrentValue = false, Callback = function(v) ESPBox = v end })
+TabESP:CreateToggle({ Name = "ESP Tên", CurrentValue = false, Callback = function(v) ESPName = v end })
+TabESP:CreateToggle({ Name = "ESP Khoảng Cách", CurrentValue = false, Callback = function(v) ESPDist = v end })
+TabESP:CreateToggle({ Name = "ESP Đường Kẻ", CurrentValue = false, Callback = function(v) ESPLine = v end })
 
 TabESP:CreateSection("🍎 ESP Trái Ác Quỷ")
-TabESP:CreateToggle({
-   Name = "Hiển Thị Trái Ác Quỷ",
-   CurrentValue = false,
-   Callback = function(v) ESPFruit = v end,
-})
+TabESP:CreateToggle({ Name = "Hiển Thị Trái Ác Quỷ", CurrentValue = false, Callback = function(v) ESPFruit = v end })
 
-TabESP:CreateSection("🏝️ ESP Đảo (Islands)")
-TabESP:CreateToggle({
-   Name = "Hiển Thị Vị Trí Các Đảo",
-   CurrentValue = false,
-   Callback = function(v) ESPIsland = v end,
-})
+TabESP:CreateSection("🏝️ ESP Đảo")
+TabESP:CreateToggle({ Name = "Hiển Thị Vị Trí Đảo", CurrentValue = false, Callback = function(v) ESPIsland = v end })
 
 -- Tab Misc
 TabMisc:CreateSection("Tiện Ích Nhân Vật")
-TabMisc:CreateToggle({
-   Name = "Hack Tốc Độ",
-   CurrentValue = false,
-   Callback = function(v) SpeedHack = v end,
-})
-TabMisc:CreateSlider({
-   Name = "Tốc Độ Di Chuyển",
-   Range = {16, 300},
-   Increment = 1,
-   Suffix = " Speed",
-   CurrentValue = 32,
-   Callback = function(v) WalkSpeedValue = v end,
-})
-TabMisc:CreateToggle({
-   Name = "Nhảy Vô Hạn",
-   CurrentValue = false,
-   Callback = function(v) InfJump = v end,
-})
-TabMisc:CreateToggle({
-   Name = "Đi Trên Nước",
-   CurrentValue = false,
-   Callback = function(v) WalkOnWater = v end,
-})
+TabMisc:CreateToggle({ Name = "Hack Tốc Độ", CurrentValue = false, Callback = function(v) SpeedHack = v end })
+TabMisc:CreateSlider({ Name = "Tốc Độ Di Chuyển", Range = {16, 300}, Increment = 1, Suffix = " Speed", CurrentValue = 32, Callback = function(v) WalkSpeedValue = v end })
+TabMisc:CreateToggle({ Name = "Nhảy Vô Hạn", CurrentValue = false, Callback = function(v) InfJump = v end })
