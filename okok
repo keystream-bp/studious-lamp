@@ -1,0 +1,238 @@
+// ================================================================
+// 🔥 LAYMA TURBO v4.0 - KHANHHAN MENU (DRAGGABLE & OPTIMIZED)
+// ================================================================
+
+(function(){
+    'use strict';
+    
+    // Tránh bị khởi chạy nhiều lần trên cùng một trang
+    if (window.__MP_L) {
+        console.log("Layma Turbo đã được bật trước đó!");
+        return;
+    }
+    window.__MP_L = 1;
+
+    // ========== FAKE UA + FINGERPRINT ==========
+    (function(){
+        const uaList = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0'
+        ];
+        const getUA = () => uaList[Math.floor(Math.random() * uaList.length)];
+        
+        try {
+            const ua = getUA();
+            Object.defineProperty(navigator, 'userAgent', { get: () => ua, configurable: true });
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32', configurable: true });
+            Object.defineProperty(navigator, 'languages', { get: () => ['vi-VN', 'en-US'], configurable: true });
+            Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+        } catch(e) {}
+    })();
+
+    // ========== ANTI-DEBUG (BẢO VỆ) ==========
+    function _antiDebugL1() { try { var start = Date.now(); debugger; if (Date.now() - start > 100) {} } catch(e) {} }
+    var _adInterval1 = null;
+    function _startAntiDebug() { try { _adInterval1 = setInterval(_antiDebugL1, 2000); } catch(e) {} }
+    function _stopAntiDebug() { try { if (_adInterval1) { clearInterval(_adInterval1); _adInterval1 = null; } } catch(e) {} }
+
+    // ========== TURBO ENGINE ==========
+    var S = 65, Ia = 0, p = null, st = null, si = null, ti = null, tm = new Map, tid = 1, ce = null, lv = -1, cd = 0, br = 0, bi = null, ctx = null, to = 0;
+    var _ST = setTimeout, _SI = setInterval, _CT = clearTimeout, _CI = clearInterval, _DN = Date.now, _R = requestAnimationFrame || function(f){ _ST(f, 16); };
+    
+    function r(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+    function _d(d) { return (typeof d != 'number' || !isFinite(d) || d < 0 || !Ia || S <= 1) ? d : Math.max(5, d / S); }
+    
+    function _k() {
+        var oi = _SI, ot = _ST, ci = _CI, ct = _CT;
+        window.setTimeout = function(f, d) {
+            var a = Array.from(arguments).slice(2);
+            if (typeof f != 'function') return 0;
+            var id = tid++, rid = ot(() => { tm.delete(id); try { f.apply(null, a); } catch(e) {} }, _d(d));
+            tm.set(id, rid); return id;
+        };
+        window.setInterval = function(f, d) {
+            var a = Array.from(arguments).slice(2);
+            if (typeof f != 'function') return 0;
+            var id = tid++, rid = oi(() => { try { f.apply(null, a); } catch(e) {} }, _d(d));
+            tm.set(id, rid); return id;
+        };
+        window.clearTimeout = function(id) { var rid = tm.get(id); if (rid) { ct(rid); tm.delete(id); } };
+        window.clearInterval = function(id) { var rid = tm.get(id); if (rid) { ci(rid); tm.delete(id); } };
+    }
+    
+    function _u() {
+        tm.forEach((rid) => { _CT(rid); _CI(rid); });
+        tm.clear();
+        window.setTimeout = _ST; window.setInterval = _SI; window.clearTimeout = _CT; window.clearInterval = _CI;
+    }
+    
+    function _c() {
+        var o = document.getElementById('mp-speed-css');
+        if (o) o.remove();
+        if (!Ia || S <= 1) return;
+        var c = document.createElement('style');
+        c.id = 'mp-speed-css';
+        c.textContent = '*,*::before,*::after{animation-duration:calc(1s/' + S + ')!important;transition-duration:calc(1s/' + S + ')!important;animation-delay:0s!important;transition-delay:0s!important;scroll-behavior:auto!important}';
+        requestAnimationFrame(() => document.head.appendChild(c));
+    }
+
+    function _g(el) {
+        if (!el) return null;
+        var t = el.textContent || '', m = t.match(/\b(\d{1,4})\b/);
+        return m ? { v: parseInt(m[1]), t: t, m: m[0] } : null;
+    }
+
+    function _f() {
+        if (ce && document.contains(ce)) { var d = _g(ce); if (d && d.v > 0 && d.v < 600) return ce; }
+        var b = null, bs = 0, els = document.querySelectorAll('*');
+        for (var i = 0, l = els.length; i < l; i++) {
+            var el = els[i], t = el.textContent || '';
+            if (t.length > 200) continue;
+            var sc = 0, nm = t.match(/\b(\d{1,4})\b/);
+            if (nm) { var num = parseInt(nm[1]); if (num > 0 && num < 600) sc += 20; }
+            if (/còn lại|remaining|wait|time|giây|seconds|countdown|đếm|chờ/i.test(t)) sc += 30;
+            if (sc > bs) { bs = sc; b = el; }
+        }
+        return bs > 10 ? (ce = b) : null;
+    }
+
+    var _pend = 0;
+    function _tc() {
+        if (!Ia) return;
+        try {
+            var el = _f(); if (!el) return;
+            var d = _g(el); if (!d) return;
+            var cv = d.v;
+            if (cv <= 0) {
+                if (!cd) {
+                    cd = 1;
+                    _ST(() => {
+                        var bs = document.querySelectorAll('button,a,[role="button"]');
+                        for (var i = 0; i < bs.length; i++) {
+                            var btn = bs[i], txt = btn.textContent || btn.value || '';
+                            if (/continue|next|tiếp|ok|done|xác nhận|verify|get link|nhận|lấy link|start/i.test(txt)) { btn.click(); break; }
+                        }
+                        _ST(() => { cd = 0; }, 3e3);
+                    }, r(400, 800));
+                }
+                return;
+            }
+            var dec = (S / 10) * 1.8 + 0.5, nv = Math.max(0, Math.round(cv - dec));
+            if (nv === lv) return;
+            lv = nv;
+            el.textContent = d.t.replace(/\b\d{1,4}\b/, String(nv));
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch(e) {}
+    }
+
+    function _s() { if (si) { _CI(si); si = null; } _pend = 0; }
+    function _st() { _s(); si = _SI(() => { if (!_pend) { _pend = 1; _R(() => { _tc(); _pend = 0; }); } }, 200); }
+    
+    function _bt() {
+        if (br) return; br = 1; var d = 0;
+        bi = _SI(() => { try { window.scrollTo({ top: d === 0 ? 0 : document.body.scrollHeight, behavior: 'auto' }); d = 1 - d; } catch(e) {} }, 3500);
+        var b = document.getElementById('mp-bot-btn'); if (b) { b.style.background = '#555555'; b.style.color = '#ffffff'; }
+    }
+    
+    function _bb() {
+        br = 0; if (bi) { _CI(bi); bi = null; }
+        var b = document.getElementById('mp-bot-btn'); if (b) { b.style.background = '#3d3d3d'; b.style.color = '#cccccc'; }
+    }
+    function _tb() { br ? _bb() : _bt(); }
+
+    function _ps() {
+        try {
+            if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === 'suspended') ctx.resume();
+            var o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = 'sine'; o.frequency.value = 880;
+            g.gain.setValueAtTime(0.03, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+            o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.03);
+        } catch(e) {}
+    }
+
+    function _on() {
+        if (Ia) return; Ia = 1; _ps();
+        var b = document.getElementById('mp-toggle-btn');
+        if (b) { b.textContent = '⏸ PAUSE'; b.style.background = '#d9534f'; b.style.color = '#ffffff'; }
+        _k(); _c(); _st(); _startAntiDebug();
+    }
+    
+    function _off() {
+        if (!Ia) return; Ia = 0; _ps();
+        var b = document.getElementById('mp-toggle-btn');
+        if (b) { b.textContent = '▶ START'; b.style.background = '#4cae4c'; b.style.color = '#ffffff'; }
+        _u(); _c(); _s(); _stopAntiDebug();
+    }
+    
+    function _tg() { Ia ? _off() : _on(); }
+    function _up() { if (st) { st.textContent = Ia ? 'ACTIVE: ' + S + 'x' : 'IDLE'; st.style.color = Ia ? '#5cb85c' : '#aaaaaa'; } }
+
+    // ========== GIAO DIỆN GỌN GÀNG & CÓ THỂ KÉO THẢ ==========
+    function _cp() {
+        var o = document.getElementById('mp-panel'); if (o) o.remove();
+        p = document.createElement('div');
+        p.id = 'mp-panel';
+        p.style.cssText = 'position:fixed;top:20px;right:20px;z-index:999999;background:#2b2b2b;border:1px solid #444;border-radius:16px;padding:14px;width:210px;font-family:sans-serif;user-select:none;color:#fff;box-shadow:0 8px 20px rgba(0,0,0,0.3);cursor:move;';
+        p.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #3a3a3a;padding-bottom:8px;margin-bottom:10px;"><span style="font-weight:600;font-size:13px;color:#e0e0e0;">khanhhan</span><div style="display:flex;align-items:center;gap:6px;"><span id="mp-speed-label" style="font-size:11px;font-weight:bold;color:#4caf50;background:#383838;padding:2px 6px;border-radius:10px;">' + S + 'x</span><button id="mp-min-btn" style="background:#3d3d3d;border:none;color:#fff;cursor:pointer;font-size:14px;width:22px;height:22px;border-radius:50%;">−</button></div></div><div id="mp-body"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span id="mp-speed-big" style="font-size:18px;font-weight:bold;color:#fff;min-width:32px;">' + S + '</span><input type="range" id="mp-slider" min="2" max="999" value="' + S + '" style="flex:1;cursor:pointer;accent-color:#4caf50;"></div><div style="display:flex;gap:6px;margin-bottom:10px;"><button id="mp-toggle-btn" style="flex:1.2;background:#4cae4c;border:none;border-radius:10px;color:#fff;padding:7px 0;font-size:10px;font-weight:bold;cursor:pointer;">▶ START</button><button id="mp-bot-btn" style="flex:1;background:#3d3d3d;border:none;border-radius:10px;color:#ccc;padding:7px 0;font-size:10px;cursor:pointer;">BOT</button><button id="mp-reset-btn" style="flex:1;background:#3d3d3d;border:none;border-radius:10px;color:#ccc;padding:7px 0;font-size:10px;cursor:pointer;">RESET</button></div><div id="mp-status" style="text-align:center;font-size:10px;color:#aaa;">IDLE</div></div>';
+        document.body.appendChild(p);
+
+        var sl = document.getElementById('mp-slider'), lb = document.getElementById('mp-speed-label');
+        st = document.getElementById('mp-status');
+
+        // ========== TÍNH NĂNG KÉO THẢ MƯỢT MÀ (CHUỘT & CẢM ỨNG) ==========
+        var dr = { a: 0, ox: 0, oy: 0 };
+
+        p.addEventListener('mousedown', function(e) {
+            if (e.target.closest('button') || e.target.closest('input')) return;
+            var r = p.getBoundingClientRect();
+            dr.a = 1; dr.ox = e.clientX - r.left; dr.oy = e.clientY - r.top;
+        });
+
+        p.addEventListener('touchstart', function(e) {
+            if (e.target.closest('button') || e.target.closest('input')) return;
+            var t = e.touches[0], r = p.getBoundingClientRect();
+            dr.a = 1; dr.ox = t.clientX - r.left; dr.oy = t.clientY - r.top;
+        }, { passive: true });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!dr.a) return;
+            var x = e.clientX - dr.ox, y = e.clientY - dr.oy;
+            x = Math.max(5, Math.min(x, window.innerWidth - p.offsetWidth - 5));
+            y = Math.max(5, Math.min(y, window.innerHeight - p.offsetHeight - 5));
+            p.style.left = x + 'px'; p.style.top = y + 'px'; p.style.right = 'auto'; p.style.bottom = 'auto';
+        });
+
+        document.addEventListener('touchmove', function(e) {
+            if (!dr.a) return;
+            var t = e.touches[0], x = t.clientX - dr.ox, y = t.clientY - dr.oy;
+            x = Math.max(5, Math.min(x, window.innerWidth - p.offsetWidth - 5));
+            y = Math.max(5, Math.min(y, window.innerHeight - p.offsetHeight - 5));
+            p.style.left = x + 'px'; p.style.top = y + 'px'; p.style.right = 'auto'; p.style.bottom = 'auto';
+        }, { passive: true });
+
+        document.addEventListener('mouseup', function() { dr.a = 0; });
+        document.addEventListener('touchend', function() { dr.a = 0; });
+
+        var mn = 0;
+        document.getElementById('mp-min-btn').addEventListener('click', () => {
+            mn = !mn; var bd = document.getElementById('mp-body');
+            bd.style.display = mn ? 'none' : 'block';
+            document.getElementById('mp-min-btn').textContent = mn ? '+' : '−';
+        });
+
+        sl.addEventListener('input', function() { S = parseInt(this.value); lb.textContent = S + 'x'; document.getElementById('mp-speed-big').textContent = S; _up(); });
+        sl.addEventListener('change', () => { if (Ia) { _c(); _u(); _k(); } });
+
+        document.getElementById('mp-toggle-btn').addEventListener('click', () => { _ps(); _tg(); });
+        document.getElementById('mp-bot-btn').addEventListener('click', _tb);
+        document.getElementById('mp-reset-btn').addEventListener('click', () => { _ps(); S = 65; sl.value = 65; lb.textContent = '65x'; document.getElementById('mp-speed-big').textContent = '65'; if (Ia) { _c(); _u(); _k(); } _up(); });
+    }
+
+    function _init() { _cp(); }
+    document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', _init) : _init();
+})();
